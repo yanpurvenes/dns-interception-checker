@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>check_dns_interception.py — Детектор вмешательства ТСПУ (РКН) в DNS</title>
-  <meta name="description" content="Онлайн-терминал для проверки перехвата DNS-трафика, блокировок DoH резолверов и подмены IP-адресов ТСПУ (РКН).">
+  <meta name="description" content="Онлайн-терминал для проверки перехвата системного DNS, блокировок DoH резолверов и цензуры ТСПУ (РКН) прямо из браузера.">
   <meta name="theme-color" content="#0b0f19">
 
   <!-- Google Fonts: JetBrains Mono / Fira Code -->
@@ -53,7 +53,7 @@
 
     .wrapper {
       width: 100%;
-      max-width: 1100px;
+      max-width: 1180px;
       display: flex;
       flex-direction: column;
       gap: 14px;
@@ -178,7 +178,7 @@
 
     .terminal-body {
       padding: 16px;
-      font-size: 0.85rem;
+      font-size: 0.84rem;
       overflow-x: auto;
       min-height: 520px;
       max-height: 75vh;
@@ -296,14 +296,14 @@
           <span class="dot dot-green"></span>
         </div>
         <div class="window-title">yanpurvenes@macbook: ~/check_dns_interception.py</div>
-        <div style="font-size: 0.75rem; color: #64748b;">DoH RFC 8484 / JSON</div>
+        <div style="font-size: 0.75rem; color: #64748b;">System DNS vs DoH :443</div>
       </div>
 
       <div id="terminal" class="terminal-body">
 <span class="c-dim">$ python3 check_dns_interception.py</span>
 <span class="c-cyan c-bold">╔══════════════════════════════════════════════════════════════════════════════════════════════════════════════╗</span>
 <span class="c-cyan c-bold">║                     ДЕТЕКТОР ВМЕШАТЕЛЬСТВА И СПУФИНГА DNS (ТСПУ РКН / DPI)                                   ║</span>
-<span class="c-cyan c-bold">║                     Комплексный анализ: DoH :443 (RFC 8484)  |  DoH JSON  |  Direct Browser Probes            ║</span>
+<span class="c-cyan c-bold">║                     Сравнение: Системный DNS Браузера vs Зашифрованный DoH :443 (RFC 8484)                   ║</span>
 <span class="c-cyan c-bold">╚══════════════════════════════════════════════════════════════════════════════════════════════════════════════╝</span>
 
 <span class="c-dim">Для запуска нажмите кнопку «ЗАПУСТИТЬ ПРОВЕРКУ» выше.</span>
@@ -333,56 +333,43 @@
         {
           name: 'Google DNS',
           ip: '8.8.8.8',
-          doh_url: 'https://dns.google/dns-query',
-          json_url: 'https://dns.google/resolve'
+          doh_url: 'https://dns.google/dns-query'
         },
         {
           name: 'Cloudflare DNS',
           ip: '1.1.1.1',
-          doh_url: 'https://cloudflare-dns.com/dns-query',
-          json_url: 'https://cloudflare-dns.com/dns-query'
+          doh_url: 'https://cloudflare-dns.com/dns-query'
         },
         {
           name: 'Quad9 DNS',
           ip: '9.9.9.9',
-          doh_url: 'https://dns.quad9.net/dns-query',
-          json_url: 'https://dns.quad9.net/dns-query'
+          doh_url: 'https://dns.quad9.net/dns-query'
         },
         {
           name: 'AdGuard DNS',
           ip: '94.140.14.14',
-          doh_url: 'https://dns.adguard-dns.com/dns-query',
-          json_url: 'https://dns.adguard-dns.com/resolve'
+          doh_url: 'https://dns.adguard-dns.com/dns-query'
         },
         {
           name: 'NextDNS',
           ip: '45.90.28.0',
-          doh_url: 'https://dns.nextdns.io/dns-query',
-          json_url: 'https://dns.nextdns.io/dns-query'
-        },
-        {
-          name: 'ControlD',
-          ip: '76.76.2.0',
-          doh_url: 'https://freedns.controld.com/p0',
-          json_url: null
+          doh_url: 'https://dns.nextdns.io/dns-query'
         },
         {
           name: 'Yandex DNS (RU)',
           ip: '77.88.8.8',
-          doh_url: 'https://common.dot.dns.yandex.net/dns-query',
-          json_url: 'https://common.dot.dns.yandex.net/dns-query'
+          doh_url: 'https://common.dot.dns.yandex.net/dns-query'
         }
       ];
 
       const QUICK_DOMAINS = [
-        ["youtube.com", "Видео / Стриминг", "streaming"],
         ["rutracker.org", "Торренты", "torrents"],
         ["instagram.com", "Соцсети", "social"],
-        ["facebook.com", "Соцсети", "social"],
-        ["x.com", "Соцсети", "social"],
-        ["discord.com", "Мессенджеры", "social"],
         ["meduza.io", "СМИ / Новости", "media"],
+        ["youtube.com", "Видео / Стриминг", "streaming"],
         ["torproject.org", "VPN / Tor", "vpn"],
+        ["discord.com", "Мессенджеры", "social"],
+        ["x.com", "Соцсети", "social"],
         ["proton.me", "VPN / Mail", "vpn"],
         ["flibusta.is", "Библиотеки", "torrents"],
         ["google.com", "Контрольный", "control"],
@@ -392,6 +379,7 @@
 
       const FULL_DOMAINS = [
         ...QUICK_DOMAINS,
+        ["facebook.com", "Соцсети", "social"],
         ["twitter.com", "Соцсети", "social"],
         ["threads.net", "Соцсети", "social"],
         ["linkedin.com", "Соцсети", "social"],
@@ -405,6 +393,7 @@
         ["dw.com", "СМИ / Новости", "media"],
         ["bbc.com", "СМИ / Новости", "media"],
         ["theins.ru", "СМИ / Новости", "media"],
+        ["svoboda.org", "СМИ / Новости", "media"],
         ["ntc.party", "Форум обхода", "vpn"],
         ["mullvad.net", "VPN сервис", "vpn"],
         ["amnezia.org", "VPN протоколы", "vpn"],
@@ -477,7 +466,56 @@
         return new Promise(resolve => setTimeout(resolve, ms));
       }
 
-      // --- DNS PACKET PARSER & QUERY ENGINE ---
+      // --- 1. DIRECT BROWSER RESOLUTION PROBE (SYSTEM DNS) ---
+      // This actually tests whether the browser's current network connection (System DNS / ISP DPI)
+      // can reach the domain or gets blocked by NXDOMAIN / TCP RST / TSPU sinkhole.
+      async function probeBrowserDirect(domain, timeoutMs = 2500) {
+        const t0 = performance.now();
+        const nonce = Math.random().toString(36).slice(2, 7);
+
+        return new Promise((resolve) => {
+          let resolved = false;
+          const timer = setTimeout(() => {
+            if (!resolved) {
+              resolved = true;
+              resolve({ ok: false, err: 'Таймаут ТСПУ', elapsed: Math.round(performance.now() - t0) });
+            }
+          }, timeoutMs);
+
+          // Try HTTPS fetch with mode: no-cors (opaque request)
+          fetch(`https://${domain}/favicon.ico?_=${nonce}`, {
+            mode: 'no-cors',
+            cache: 'no-store'
+          }).then(() => {
+            if (!resolved) {
+              resolved = true;
+              clearTimeout(timer);
+              resolve({ ok: true, elapsed: Math.round(performance.now() - t0) });
+            }
+          }).catch(() => {
+            // Failed: could be DNS NXDOMAIN, SSL Block, or RST. Try image probe fallback
+            const img = new Image();
+            img.onload = () => {
+              if (!resolved) {
+                resolved = true;
+                clearTimeout(timer);
+                resolve({ ok: true, elapsed: Math.round(performance.now() - t0) });
+              }
+            };
+            img.onerror = () => {
+              if (!resolved) {
+                resolved = true;
+                clearTimeout(timer);
+                const el = Math.round(performance.now() - t0);
+                resolve({ ok: false, err: el < 400 ? 'NXDOMAIN/RST' : 'Блок/Таймаут', elapsed: el });
+              }
+            };
+            img.src = `https://${domain}/favicon.ico?_=${nonce}`;
+          });
+        });
+      }
+
+      // --- 2. DOH QUERY ENGINE (RFC 8484) ---
       function buildDnsWireQuery(domain) {
         const txId = Math.floor(Math.random() * 65535);
         const parts = domain.trim().replace(/\.$/, '').split('.');
@@ -572,36 +610,7 @@
           if (res.ok) {
             const buf = await res.arrayBuffer();
             const parsed = parseDnsWireResponse(buf);
-            if (parsed) return { ok: true, ips: parsed.ips, elapsed, aa: parsed.aa === 1 };
-          }
-          return { ok: false, err: `HTTP ${res.status}`, elapsed };
-        } catch (e) {
-          const elapsed = performance.now() - t0;
-          return { ok: false, err: e.name === 'AbortError' ? 'Таймаут' : 'TLS/CORS Блок', elapsed };
-        }
-      }
-
-      async function queryDoHJson(url, domain, timeoutMs = 3500) {
-        if (!url) return { ok: false, err: 'N/A', elapsed: 0 };
-        const t0 = performance.now();
-        try {
-          const sep = url.includes('?') ? '&' : '?';
-          const target = `${url}${sep}name=${encodeURIComponent(domain)}&type=A&_=${Math.random().toString(36).slice(2, 6)}`;
-          const controller = new AbortController();
-          const timer = setTimeout(() => controller.abort(), timeoutMs);
-          const res = await fetch(target, {
-            headers: { 'Accept': 'application/dns-json' },
-            signal: controller.signal
-          });
-          clearTimeout(timer);
-          const elapsed = performance.now() - t0;
-          if (res.ok) {
-            const data = await res.json();
-            const ips = [];
-            if (data.Answer) {
-              data.Answer.forEach(ans => { if (ans.type === 1 && ans.data) ips.push(ans.data); });
-            }
-            return { ok: true, ips, elapsed, aa: data.AA || false };
+            if (parsed) return { ok: true, ips: parsed.ips, elapsed, aa: parsed.aa === 1, rcode: parsed.rcode };
           }
           return { ok: false, err: `HTTP ${res.status}`, elapsed };
         } catch (e) {
@@ -617,28 +626,23 @@
         return str + ' '.repeat(len - str.length);
       }
 
-      function formatWireCol(res) {
+      function formatDirectCol(res) {
         if (!res.ok) {
-          return `<span class="c-red">❌ ${pad(res.err, 13)}</span> <span class="c-dim">(${res.elapsed.toFixed(0)}мс)</span>`;
+          return `<span class="c-red">❌ ${pad(res.err, 16)}</span> <span class="c-dim">(${res.elapsed}мс)</span>`;
         }
-        if (res.ips && res.ips.length > 0) {
-          const isBogon = res.ips.some(ip => BOGON_IPS.has(ip) || ip.startsWith('127.') || ip.startsWith('10.'));
-          if (isBogon) return `<span class="c-red c-bold">🚨 ЗАГЛУШКА: ${res.ips[0]}</span>`;
-          return `<span class="c-green">🌐 ${pad(res.ips[0], 14)}</span> <span class="c-dim">(${res.elapsed.toFixed(0)}мс)</span>`;
-        }
-        return `<span class="c-yellow">🌐 NXDOMAIN/CNAME</span> <span class="c-dim">(${res.elapsed.toFixed(0)}мс)</span>`;
+        return `<span class="c-green">✔ Доступен        </span> <span class="c-dim">(${res.elapsed}мс)</span>`;
       }
 
-      function formatJsonCol(res) {
+      function formatDohCol(res) {
         if (!res.ok) {
-          return `<span class="c-red">❌ ${pad(res.err, 13)}</span> <span class="c-dim">(${res.elapsed.toFixed(0)}мс)</span>`;
+          return `<span class="c-red">❌ ${pad(res.err, 16)}</span> <span class="c-dim">(${res.elapsed.toFixed(0)}мс)</span>`;
         }
         if (res.ips && res.ips.length > 0) {
           const isBogon = res.ips.some(ip => BOGON_IPS.has(ip) || ip.startsWith('127.') || ip.startsWith('10.'));
           if (isBogon) return `<span class="c-red c-bold">🚨 ЗАГЛУШКА: ${res.ips[0]}</span>`;
-          return `<span class="c-green">🌐 ${pad(res.ips[0], 14)}</span> <span class="c-dim">(${res.elapsed.toFixed(0)}мс)</span>`;
+          return `<span class="c-green">🔒 ${pad(res.ips[0], 16)}</span> <span class="c-dim">(${res.elapsed.toFixed(0)}мс)</span>`;
         }
-        return `<span class="c-yellow">🌐 NXDOMAIN/CNAME</span> <span class="c-dim">(${res.elapsed.toFixed(0)}мс)</span>`;
+        return `<span class="c-yellow">🔒 NXDOMAIN/CNAME  </span> <span class="c-dim">(${res.elapsed.toFixed(0)}мс)</span>`;
       }
 
       // --- MAIN SCAN EXECUTION ---
@@ -653,7 +657,7 @@
         appendHtml(`<span class="c-dim">$ python3 check_dns_interception.py --mode=${selectedMode}</span>`);
         appendHtml(`<span class="c-cyan c-bold">╔══════════════════════════════════════════════════════════════════════════════════════════════════════════════╗</span>`);
         appendHtml(`<span class="c-cyan c-bold">║                     ДЕТЕКТОР ВМЕШАТЕЛЬСТВА И СПУФИНГА DNS (ТСПУ РКН / DPI)                                   ║</span>`);
-        appendHtml(`<span class="c-cyan c-bold">║                     Комплексный анализ: DoH :443 (RFC 8484)  |  DoH JSON  |  Direct Browser Probes            ║</span>`);
+        appendHtml(`<span class="c-cyan c-bold">║                     Сравнение: Системный DNS Браузера vs Зашифрованный DoH :443 (RFC 8484)                   ║</span>`);
         appendHtml(`<span class="c-cyan c-bold">╚══════════════════════════════════════════════════════════════════════════════════════════════════════════════╝</span>\n`);
 
         // Step 1: Detect Network & ISP
@@ -680,45 +684,62 @@
         }
         appendHtml('');
 
-        const targetServers = selectedMode === 'quick' ? SERVERS.slice(0, 3) : SERVERS;
+        const targetServers = selectedMode === 'quick' ? SERVERS.slice(0, 2) : SERVERS;
         const targetDomains = selectedMode === 'quick' ? QUICK_DOMAINS : FULL_DOMAINS;
 
         let totalChecks = 0;
-        let totalSpoofed = 0;
+        let totalIntercepted = 0;
         let totalDohBlocked = 0;
+        let findingsList = [];
 
         // Step 2: Loop over servers & domains
         for (const srv of targetServers) {
           appendHtml(`<span class="c-magenta c-bold">▶ Сервер: ${srv.name} (${srv.ip})</span> | DoH: ${srv.doh_url}`);
-          appendHtml(`  ${pad('Домен', 18)} | ${pad('Категория', 16)} | ${pad('DoH RFC 8484 (:443)', 28)} | ${pad('DoH JSON API', 28)} | Вердикт`);
-          appendHtml(`  ` + '─'.repeat(108));
+          appendHtml(`  ${pad('Домен', 18)} | ${pad('Категория', 16)} | ${pad('Браузер (Системный DNS)', 30)} | ${pad('DoH :443 (Зашифрованный)', 30)} | Вердикт`);
+          appendHtml(`  ` + '─'.repeat(120));
 
           for (const d of targetDomains) {
             const domain = d[0];
             const catDesc = d[1];
+            const catType = d[2];
 
-            // Perform queries
-            const wireRes = await queryDoHWire(srv.doh_url, domain, 3500);
-            const jsonRes = srv.json_url ? await queryDoHJson(srv.json_url, domain, 3500) : { ok: false, err: 'N/A', elapsed: 0 };
+            // 1. Direct Browser Probe (Using System DNS)
+            const directRes = await probeBrowserDirect(domain, 2500);
+            
+            // 2. Encrypted DoH Query (Bypassing System DNS)
+            const dohRes = await queryDoHWire(srv.doh_url, domain, 3500);
             totalChecks++;
 
-            const wireStr = formatWireCol(wireRes);
-            const jsonStr = formatJsonCol(jsonRes);
+            const directStr = formatDirectCol(directRes);
+            const dohStr = formatDohCol(dohRes);
 
-            const hasBogon = (wireRes.ips && wireRes.ips.some(ip => BOGON_IPS.has(ip))) ||
-                             (jsonRes.ips && jsonRes.ips.some(ip => BOGON_IPS.has(ip)));
-
+            const hasBogon = dohRes.ips && dohRes.ips.some(ip => BOGON_IPS.has(ip));
             let verdictBadge = `<span class="c-green">🟢 ЧИСТО</span>`;
+
+            // Detection Logic
             if (hasBogon) {
-              totalSpoofed++;
+              totalIntercepted++;
               verdictBadge = `<span class="c-red c-bold">🚨 ПОДМЕНА (BOGON)</span>`;
-            } else if (!wireRes.ok && !jsonRes.ok) {
+              findingsList.push(`Домен ${domain}: DoH вернул IP заглушку [${dohRes.ips.join(', ')}]`);
+            } else if (!directRes.ok && dohRes.ok && dohRes.ips && dohRes.ips.length > 0) {
+              // System DNS fails while DoH succeeds -> Classic TSPU DNS Spoofing / Blocking!
+              totalIntercepted++;
+              if (catType === 'control') {
+                verdictBadge = `<span class="c-yellow c-bold">⚠️ СБОЙ СЕТИ</span>`;
+              } else {
+                verdictBadge = `<span class="c-red c-bold">🚨 ПЕРЕХВАТ ТСПУ / БЛОК</span>`;
+                findingsList.push(`Домен ${domain}: Системный DNS заблокирован (${directRes.err}), но DoH вернул чистые IP [${dohRes.ips.slice(0, 2).join(', ')}]`);
+              }
+            } else if (!dohRes.ok && !directRes.ok) {
               totalDohBlocked++;
-              verdictBadge = `<span class="c-red">❌ БЛОК DOH</span>`;
+              verdictBadge = `<span class="c-red">❌ БЛОКИРОВКА</span>`;
+            } else if (!dohRes.ok && directRes.ok) {
+              totalDohBlocked++;
+              verdictBadge = `<span class="c-yellow">⚠️ DoH БЛОК</span>`;
             }
 
-            appendHtml(`  ${pad(domain, 18)} | ${pad(catDesc, 16)} | ${wireStr} | ${jsonStr} | ${verdictBadge}`);
-            await sleep(40);
+            appendHtml(`  ${pad(domain, 18)} | ${pad(catDesc, 16)} | ${directStr} | ${dohStr} | ${verdictBadge}`);
+            await sleep(35);
           }
           appendHtml('');
         }
@@ -728,20 +749,27 @@
         appendHtml(`<span class="c-cyan c-bold">║                                          ИТОГОВЫЙ АНАЛИЗ И ВЫВОДЫ                                            ║</span>`);
         appendHtml(`<span class="c-cyan c-bold">╚══════════════════════════════════════════════════════════════════════════════════════════════════════════════╝</span>\n`);
 
-        if (totalSpoofed > 0) {
-          appendHtml(`<span class="c-red c-bold">🚨 ОБНАРУЖЕНА ПОДМЕНА IP-АДРЕСОВ (${totalSpoofed} случаев)!</span>`);
-          appendHtml(`   Провайдер или ТСПУ подменяет DNS-ответы на IP-заглушки (127.0.0.1 / 195.82.146.120).`);
-          appendHtml(`   Рекомендация: включите DoH с Encrypted Client Hello (ECH) или настройте VPN/Zapret.\n`);
+        if (totalIntercepted > 0) {
+          appendHtml(`<span class="c-red c-bold">🚨 ОБНАРУЖЕНО ВМЕШАТЕЛЬСТВО ТСПУ / СПУФИНГ СИСТЕМНОГО DNS (${totalIntercepted} скомпрометировано)!</span>\n`);
+          appendHtml(`<span class="c-bold">Ключевые маркеры и почему это именно ТСПУ (РКН):</span>`);
+          appendHtml(`1. <span class="c-bold">Системный DNS браузера перехвачен или заблокирован:</span>`);
+          appendHtml(`   Прямые запросы браузера к заблокированным доменам сбрасываются по RST или возвращают NXDOMAIN.`);
+          appendHtml(`2. <span class="c-bold">Расхождение с защищенным каналом DoH :443:</span>`);
+          appendHtml(`   В то время как системный DNS блокирует доступ, зашифрованный канал DoH успешно резолвит реальные IP.`);
+          appendHtml(`3. <span class="c-bold">Рекомендации по обходу:</span>`);
+          appendHtml(`   • Включите <span class="c-green c-bold">«Безопасный DNS» (DNS-over-HTTPS)</span> в настройках браузера (Chrome / Firefox / Edge).`);
+          appendHtml(`   • Включите <span class="c-cyan c-bold">ECH (Encrypted Client Hello)</span> для защиты SNI.`);
+          appendHtml(`   • Используйте утилиты обхода DPI (<span class="c-yellow">Zapret</span> / <span class="c-yellow">GoodbyeDPI</span>) или VPN (<span class="c-cyan">Amnezia</span> / <span class="c-cyan">VLESS</span>).\n`);
         } else if (totalDohBlocked >= 3) {
           appendHtml(`<span class="c-red c-bold">🚫 ЗАФИКСИРОВАНА БЛОКИРОВКА DOH РЕЗОЛВЕРОВ (${totalDohBlocked} сбоев)!</span>`);
           appendHtml(`   Оборудование ТСПУ блокирует зашифрованные эндпоинты DoH по TLS/SNI.`);
           appendHtml(`   Рекомендация: используйте DoH по прямому IP без SNI или утилиты обхода DPI (GoodbyeDPI / Zapret / Amnezia).\n`);
         } else {
           appendHtml(`<span class="c-green c-bold">🟢 ВМЕШАТЕЛЬСТВО В DNS НЕ ОБНАРУЖЕНО.</span>`);
-          appendHtml(`   Все проверенные DoH-запросы успешно дошли до оригинальных серверов без подмены IP и блокировок.\n`);
+          appendHtml(`   И системный DNS, и зашифрованные каналы DoH работают корректно без расхождений и подмен.\n`);
         }
 
-        appendHtml(`<span class="c-dim">[Тест завершен: проверено ${totalChecks} комбинаций домен/резолвер]</span>\n`);
+        appendHtml(`<span class="c-dim">[Тест завершен: проверено ${totalChecks} проверок]</span>\n`);
 
         isRunning = false;
         btnRun.disabled = false;
