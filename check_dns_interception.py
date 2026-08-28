@@ -75,6 +75,12 @@ DEFAULT_SERVERS = [
         "doh_url": "https://dns.adguard-dns.com/dns-query",
     },
     {
+        "name": "Control D (Unfiltered)",
+        "ip": "76.76.2.0",
+        "dot_host": "p0.freedns.controld.com",
+        "doh_url": "https://freedns.controld.com/p0",
+    },
+    {
         "name": "Yandex DNS (RU)",
         "ip": "77.88.8.8",
         "dot_host": "common.dot.dns.yandex.net",

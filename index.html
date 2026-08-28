@@ -53,7 +53,7 @@
 
     .wrapper {
       width: 100%;
-      max-width: 1240px;
+      max-width: 1260px;
       display: flex;
       flex-direction: column;
       gap: 14px;
@@ -61,29 +61,97 @@
 
     /* Controls Bar */
     .controls-bar {
+      background: var(--bg-term);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .controls-top {
       display: flex;
       justify-content: space-between;
       align-items: center;
       flex-wrap: wrap;
       gap: 10px;
-      background: var(--bg-term);
-      border: 1px solid var(--border-color);
-      border-radius: 8px;
-      padding: 10px 16px;
     }
 
-    .controls-left {
+    .controls-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--text-muted);
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 6px;
+    }
+
+    /* Server Selection Checkboxes */
+    .servers-selection {
+      display: flex;
       flex-wrap: wrap;
+      gap: 8px 14px;
+      padding-top: 4px;
+      border-top: 1px solid #1a2234;
+      align-items: center;
+    }
+
+    .dns-check-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.82rem;
+      color: var(--text-main);
+      cursor: pointer;
+      background: #111827;
+      padding: 6px 10px;
+      border-radius: 6px;
+      border: 1px solid #1f2937;
+      user-select: none;
+      transition: all 0.2s ease;
+    }
+    .dns-check-label:hover {
+      border-color: #374151;
+      background: #1f2937;
+    }
+    .dns-check-label.checked {
+      background: rgba(6, 182, 212, 0.12);
+      border-color: #06b6d4;
+      color: #38bdf8;
+    }
+
+    .dns-checkbox {
+      accent-color: #06b6d4;
+      width: 15px;
+      height: 15px;
+      cursor: pointer;
+    }
+
+    .quick-select-links {
+      display: inline-flex;
+      gap: 8px;
+      margin-left: auto;
+      font-size: 0.78rem;
+    }
+    .link-btn {
+      background: none;
+      border: none;
+      color: #38bdf8;
+      cursor: pointer;
+      font-family: inherit;
+      padding: 2px 4px;
+      text-decoration: underline;
+    }
+    .link-btn:hover {
+      color: #7dd3fc;
     }
 
     .btn {
       font-family: var(--font-mono);
       font-size: 0.88rem;
       font-weight: 600;
-      padding: 8px 16px;
+      padding: 8px 18px;
       border-radius: 6px;
       cursor: pointer;
       border: 1px solid transparent;
@@ -104,31 +172,20 @@
       box-shadow: 0 0 20px rgba(34, 197, 94, 0.5);
     }
     .btn-run:disabled {
-      background: #4b5563;
-      color: #9ca3af;
+      background: #27272a;
+      color: #71717a;
+      border: 1px solid #3f3f46;
       cursor: not-allowed;
       box-shadow: none;
-    }
-
-    .btn-opt {
-      background: #1e293b;
-      color: var(--text-muted);
-      border-color: #334155;
-    }
-    .btn-opt:hover {
-      background: #334155;
-      color: var(--text-main);
-    }
-    .btn-opt.active {
-      background: #0284c7;
-      color: #fff;
-      border-color: #38bdf8;
+      opacity: 0.7;
     }
 
     .btn-tool {
       background: transparent;
       color: var(--text-muted);
       border: 1px solid var(--border-color);
+      font-size: 0.82rem;
+      padding: 6px 12px;
     }
     .btn-tool:hover {
       background: #1e293b;
@@ -284,20 +341,60 @@
 
   <div class="wrapper">
 
-    <!-- Top Controls Bar -->
+    <!-- Top Controls & Server Selector -->
     <div class="controls-bar">
-      <div class="controls-left">
-        <button id="btnRun" class="btn btn-run">
-          <span id="btnRunIcon">▶</span>
-          <span id="btnRunText">ЗАПУСТИТЬ ПРОВЕРКУ</span>
-        </button>
-        <button id="btnModeQuick" class="btn btn-opt active" data-mode="quick">Быстрый тест (Google + Cloudflare)</button>
-        <button id="btnModeFull" class="btn btn-opt" data-mode="full">Полный тест (Все 6 резолверов)</button>
+      <div class="controls-top">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <button id="btnRun" class="btn btn-run" disabled title="Выберите хотя бы один DNS-сервер">
+            <span id="btnRunIcon">▶</span>
+            <span id="btnRunText">ЗАПУСТИТЬ ПРОВЕРКУ</span>
+          </button>
+          <span id="selectHint" style="font-size: 0.78rem; color: var(--text-dim);">(Выберите DNS ниже)</span>
+        </div>
+
+        <div style="display: flex; gap: 8px;">
+          <button id="btnCopyOutput" class="btn btn-tool">📋 Копировать вывод</button>
+          <button id="btnClearOutput" class="btn btn-tool">🔄 Очистить</button>
+        </div>
       </div>
 
-      <div style="display: flex; gap: 8px;">
-        <button id="btnCopyOutput" class="btn btn-tool">📋 Копировать вывод</button>
-        <button id="btnClearOutput" class="btn btn-tool">🔄 Очистить</button>
+      <!-- Checkboxes for Servers -->
+      <div class="servers-selection">
+        <span class="controls-title">Серверы:</span>
+        
+        <label class="dns-check-label" id="lbl-google">
+          <input type="checkbox" class="dns-checkbox" value="google"> Google DNS (8.8.8.8)
+        </label>
+        
+        <label class="dns-check-label" id="lbl-cloudflare">
+          <input type="checkbox" class="dns-checkbox" value="cloudflare"> Cloudflare (1.1.1.1)
+        </label>
+        
+        <label class="dns-check-label" id="lbl-quad9">
+          <input type="checkbox" class="dns-checkbox" value="quad9"> Quad9 (9.9.9.9)
+        </label>
+
+        <label class="dns-check-label" id="lbl-controld">
+          <input type="checkbox" class="dns-checkbox" value="controld"> Control D (76.76.2.0)
+        </label>
+
+        <label class="dns-check-label" id="lbl-nextdns">
+          <input type="checkbox" class="dns-checkbox" value="nextdns"> NextDNS (45.90.28.0)
+        </label>
+
+        <label class="dns-check-label" id="lbl-adguard">
+          <input type="checkbox" class="dns-checkbox" value="adguard"> AdGuard (94.140.14.14)
+        </label>
+
+        <label class="dns-check-label" id="lbl-yandex">
+          <input type="checkbox" class="dns-checkbox" value="yandex"> Yandex DNS (77.88.8.8)
+        </label>
+
+        <div class="quick-select-links">
+          <button id="btnSelectAll" class="link-btn">Выбрать все</button>
+          <span style="color: var(--text-dim);">|</span>
+          <button id="btnDeselectAll" class="link-btn">Снять все</button>
+        </div>
       </div>
     </div>
 
@@ -320,7 +417,7 @@
 <span class="c-cyan c-bold">║                     Комплексный анализ: UDP :53  |  DoT :853 (TLS)  |  DoH :443 (HTTPS)                      ║</span>
 <span class="c-cyan c-bold">╚══════════════════════════════════════════════════════════════════════════════════════════════════════════════╝</span>
 
-<span class="c-dim">Для запуска анализа нажмите зеленую кнопку «ЗАПУСТИТЬ ПРОВЕРКУ».</span>
+<span class="c-dim">Выберите один или несколько DNS-серверов чекбоксами выше и нажмите «ЗАПУСТИТЬ ПРОВЕРКУ».</span>
 <span class="cursor" id="cursor"></span></div>
     </div>
 
@@ -331,7 +428,7 @@
       </div>
       <div class="cli-cmd-row">
         <code class="cli-cmd-text" id="cliCmd">curl -sSL https://raw.githubusercontent.com/yanpurvenes/dns-interception-checker/main/check_dns_interception.py | python3</code>
-        <button id="btnCopyCli" class="btn btn-opt" style="padding: 4px 10px; font-size: 0.78rem;">📋 Скопировать</button>
+        <button id="btnCopyCli" class="btn btn-tool" style="padding: 4px 10px; font-size: 0.78rem;">📋 Скопировать</button>
       </div>
     </div>
 
@@ -343,39 +440,52 @@
     (function() {
       'use strict';
 
-      // --- CONFIGURATION OF TARGET SERVERS ---
-      const SERVERS = [
+      // --- CONFIGURATION OF TARGET SERVERS (INCLUDING CONTROL D UNFILTERED) ---
+      const ALL_SERVERS = [
         {
+          id: 'google',
           name: 'Google DNS',
           ip: '8.8.8.8',
           dot_host: 'dns.google',
           doh_url: 'https://dns.google/dns-query'
         },
         {
+          id: 'cloudflare',
           name: 'Cloudflare DNS',
           ip: '1.1.1.1',
           dot_host: 'one.one.one.one',
           doh_url: 'https://cloudflare-dns.com/dns-query'
         },
         {
+          id: 'quad9',
           name: 'Quad9 DNS',
           ip: '9.9.9.9',
           dot_host: 'dns.quad9.net',
           doh_url: 'https://dns.quad9.net/dns-query'
         },
         {
+          id: 'controld',
+          name: 'Control D (Unfiltered)',
+          ip: '76.76.2.0',
+          dot_host: 'p0.freedns.controld.com',
+          doh_url: 'https://freedns.controld.com/p0'
+        },
+        {
+          id: 'nextdns',
           name: 'NextDNS',
           ip: '45.90.28.0',
           dot_host: 'dns.nextdns.io',
           doh_url: 'https://dns.nextdns.io/dns-query'
         },
         {
+          id: 'adguard',
           name: 'AdGuard DNS',
           ip: '94.140.14.14',
           dot_host: 'dns.adguard-dns.com',
           doh_url: 'https://dns.adguard-dns.com/dns-query'
         },
         {
+          id: 'yandex',
           name: 'Yandex DNS (RU)',
           ip: '77.88.8.8',
           dot_host: 'common.dot.dns.yandex.net',
@@ -407,48 +517,70 @@
         ["github.com", "Контрольный (Чистый)", "control"]
       ];
 
-      // Domains specifically spoofed by TSPU on UDP:53 with NXDOMAIN [aa!]
+      // Domains spoofed by TSPU on UDP:53 with NXDOMAIN [aa!]
       const TSPU_SPOOFED_DOMAINS = new Set([
         "youtube.com", "rutracker.org", "flibusta.is", "ntc.party", "mullvad.net"
       ]);
 
-      const BOGON_IPS = new Set([
-        "127.0.0.1", "0.0.0.0", "10.0.0.0", "10.254.254.254", 
-        "195.82.146.120", "195.82.146.121", "80.80.80.80"
-      ]);
-
       let isRunning = false;
-      let selectedMode = 'quick';
 
       const term = document.getElementById('terminal');
       const btnRun = document.getElementById('btnRun');
       const btnRunIcon = document.getElementById('btnRunIcon');
       const btnRunText = document.getElementById('btnRunText');
-      const btnModeQuick = document.getElementById('btnModeQuick');
-      const btnModeFull = document.getElementById('btnModeFull');
+      const selectHint = document.getElementById('selectHint');
       const btnCopyOutput = document.getElementById('btnCopyOutput');
       const btnClearOutput = document.getElementById('btnClearOutput');
       const btnCopyCli = document.getElementById('btnCopyCli');
+      const btnSelectAll = document.getElementById('btnSelectAll');
+      const btnDeselectAll = document.getElementById('btnDeselectAll');
       const toast = document.getElementById('toast');
 
-      // --- BUTTON LISTENERS ---
-      btnModeQuick.addEventListener('click', () => {
-        selectedMode = 'quick';
-        btnModeQuick.classList.add('active');
-        btnModeFull.classList.remove('active');
+      const checkboxes = Array.from(document.querySelectorAll('.dns-checkbox'));
+
+      // --- CHECKBOX STATE MANAGEMENT ---
+      function updateButtonState() {
+        const checkedCount = checkboxes.filter(cb => cb.checked).length;
+        if (checkedCount > 0 && !isRunning) {
+          btnRun.disabled = false;
+          selectHint.textContent = `(Выбрано: ${checkedCount})`;
+          selectHint.style.color = '#38bdf8';
+        } else if (!isRunning) {
+          btnRun.disabled = true;
+          selectHint.textContent = '(Выберите DNS ниже)';
+          selectHint.style.color = 'var(--text-dim)';
+        }
+
+        checkboxes.forEach(cb => {
+          const lbl = document.getElementById(`lbl-${cb.value}`);
+          if (lbl) {
+            if (cb.checked) lbl.classList.add('checked');
+            else lbl.classList.remove('checked');
+          }
+        });
+      }
+
+      checkboxes.forEach(cb => {
+        cb.addEventListener('change', updateButtonState);
       });
 
-      btnModeFull.addEventListener('click', () => {
-        selectedMode = 'full';
-        btnModeFull.classList.add('active');
-        btnModeQuick.classList.remove('active');
+      btnSelectAll.addEventListener('click', () => {
+        if (isRunning) return;
+        checkboxes.forEach(cb => cb.checked = true);
+        updateButtonState();
+      });
+
+      btnDeselectAll.addEventListener('click', () => {
+        if (isRunning) return;
+        checkboxes.forEach(cb => cb.checked = false);
+        updateButtonState();
       });
 
       btnRun.addEventListener('click', startScan);
 
       btnClearOutput.addEventListener('click', () => {
         if (isRunning) return;
-        term.innerHTML = '<span class="c-dim">$ ready. Нажмите «ЗАПУСТИТЬ ПРОВЕРКУ».</span>\n<span class="cursor"></span>';
+        term.innerHTML = '<span class="c-dim">$ ready. Выберите серверы и нажмите «ЗАПУСТИТЬ ПРОВЕРКУ».</span>\n<span class="cursor"></span>';
       });
 
       btnCopyOutput.addEventListener('click', () => {
@@ -582,7 +714,6 @@
         }
       }
 
-      // --- FORMATTERS ---
       function pad(str, len) {
         str = String(str);
         if (str.length >= len) return str.slice(0, len);
@@ -591,7 +722,12 @@
 
       // --- MAIN SCAN EXECUTION ---
       async function startScan() {
-        if (isRunning) return;
+        const selectedIds = new Set(checkboxes.filter(cb => cb.checked).map(cb => cb.value));
+        if (selectedIds.size === 0 || isRunning) return;
+
+        const targetServers = ALL_SERVERS.filter(s => selectedIds.has(s.id));
+        if (targetServers.length === 0) return;
+
         isRunning = true;
         btnRun.disabled = true;
         btnRunIcon.textContent = '⏳';
@@ -608,13 +744,12 @@
         appendHtml(`<span class="c-blue c-bold">▶ ПРОВЕРКА ТОТАЛЬНОГО ПЕРЕХВАТА ПОРТА 53 (Запрос на фиктивный IP 192.0.2.1):</span>`);
         appendHtml(`  <span class="c-green">✔ Чисто: Фиктивный IP 192.0.2.1 не ответил (порт 53 не заворачивается поголовно в прозрачный прокси).</span>\n`);
 
-        const targetServers = selectedMode === 'quick' ? SERVERS.slice(0, 2) : SERVERS;
         const targetDomains = DOMAINS_DB;
 
         let totalChecks = 0;
         let totalIntercepted = 0;
 
-        // Step 2: Loop over servers & domains
+        // Step 2: Loop over selected servers & domains
         for (const srv of targetServers) {
           appendHtml(`<span class="c-magenta c-bold">▶ Сервер: ${srv.name} (${srv.ip})</span> | DoT: ${srv.dot_host} | DoH: ${srv.doh_url}`);
           appendHtml(`  ${pad('Домен', 18)} | ${pad('Категория', 18)} | ${pad('UDP :53 (Открытый)', 26)} | ${pad('DoT :853 (TLS)', 26)} | ${pad('DoH :443 (HTTPS)', 26)} | Вердикт`);
@@ -698,9 +833,9 @@
         }
 
         isRunning = false;
-        btnRun.disabled = false;
         btnRunIcon.textContent = '▶';
         btnRunText.textContent = 'ЗАПУСТИТЬ ПОВТОРНО';
+        updateButtonState();
       }
 
     })();
