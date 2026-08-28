@@ -1,0 +1,2288 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DNS Interception & RKN DPI Detector | Проверка перехвата DNS и блокировок ТСПУ</title>
+  <meta name="description" content="Инструмент для проверки перехвата DNS-трафика, блокировки DoH резолверов, подмены IP-адресов и вмешательства ТСПУ (РКН) прямо из браузера.">
+  <meta name="theme-color" content="#0a0f1d">
+
+  <!-- OpenGraph / Social Meta -->
+  <meta property="og:title" content="DNS Interception & RKN DPI Detector">
+  <meta property="og:description" content="Проверьте, слушает ли ваш провайдер или РКН DNS-запросы и блокирует ли защищенный DoH.">
+  <meta property="og:type" content="website">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    /* ==========================================================================
+       CSS VARIABLES & THEMES
+       ========================================================================== */
+    :root {
+      /* Base Colors (Cyber Dark - Default) */
+      --bg-base: #070a13;
+      --bg-surface: rgba(15, 23, 42, 0.75);
+      --bg-surface-hover: rgba(30, 41, 59, 0.85);
+      --bg-card: rgba(17, 24, 39, 0.65);
+      --bg-card-solid: #0f172a;
+      
+      --border-color: rgba(255, 255, 255, 0.08);
+      --border-focus: rgba(99, 102, 241, 0.5);
+      --border-glow: rgba(99, 102, 241, 0.25);
+      
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-subtle: #64748b;
+      
+      --clr-primary: #6366f1;
+      --clr-primary-hover: #4f46e5;
+      --clr-cyan: #06b6d4;
+      --clr-magenta: #ec4899;
+      --clr-success: #10b981;
+      --clr-warning: #f59e0b;
+      --clr-danger: #ef4444;
+      --clr-info: #3b82f6;
+
+      --gradient-accent: linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%);
+      --gradient-card: linear-gradient(180deg, rgba(30, 41, 59, 0.4) 0%, rgba(15, 23, 42, 0.6) 100%);
+      --gradient-success: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      --gradient-danger: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
+      --gradient-warning: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+
+      --radius-sm: 8px;
+      --radius-md: 14px;
+      --radius-lg: 20px;
+      --radius-full: 9999px;
+
+      --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.2);
+      --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.35);
+      --shadow-glow: 0 0 25px rgba(99, 102, 241, 0.2);
+
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --font-display: 'Space Grotesk', var(--font-sans);
+      --font-mono: 'Fira Code', 'JetBrains Mono', monospace;
+      --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* Cyberpunk Theme */
+    body.theme-cyberpunk {
+      --bg-base: #04050a;
+      --bg-surface: rgba(10, 15, 30, 0.85);
+      --bg-card: rgba(18, 16, 38, 0.7);
+      --border-color: rgba(0, 255, 204, 0.15);
+      --border-glow: rgba(255, 0, 128, 0.35);
+      --clr-primary: #00ffcc;
+      --clr-primary-hover: #00ddb0;
+      --clr-cyan: #00ffcc;
+      --clr-magenta: #ff007f;
+      --text-main: #f0fdf4;
+      --text-muted: #99f6e4;
+      --gradient-accent: linear-gradient(135deg, #00ffcc 0%, #ff007f 100%);
+      --shadow-glow: 0 0 25px rgba(0, 255, 204, 0.25);
+    }
+
+    /* Clean Light Theme */
+    body.theme-light {
+      --bg-base: #f1f5f9;
+      --bg-surface: rgba(255, 255, 255, 0.9);
+      --bg-surface-hover: #ffffff;
+      --bg-card: rgba(255, 255, 255, 0.85);
+      --bg-card-solid: #ffffff;
+      --border-color: rgba(0, 0, 0, 0.08);
+      --border-focus: rgba(99, 102, 241, 0.5);
+      --border-glow: rgba(99, 102, 241, 0.1);
+      --text-main: #0f172a;
+      --text-muted: #475569;
+      --text-subtle: #94a3b8;
+      --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.08);
+      --shadow-glow: 0 0 20px rgba(99, 102, 241, 0.1);
+      --gradient-card: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    }
+
+    /* ==========================================================================
+       RESET & BASE STYLES
+       ========================================================================== */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--bg-base);
+      color: var(--text-main);
+      min-height: 100vh;
+      line-height: 1.6;
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.12) 0px, transparent 50%),
+        radial-gradient(at 100% 0%, rgba(236, 72, 153, 0.1) 0px, transparent 50%),
+        radial-gradient(at 50% 100%, rgba(6, 182, 212, 0.08) 0px, transparent 50%);
+      background-attachment: fixed;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    a {
+      color: var(--clr-primary);
+      text-decoration: none;
+      transition: var(--transition);
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+
+    button {
+      font-family: inherit;
+      cursor: pointer;
+      border: none;
+      outline: none;
+      transition: var(--transition);
+    }
+
+    /* ==========================================================================
+       LAYOUT & CONTAINER
+       ========================================================================== */
+    .container {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 24px 20px 80px;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: var(--radius-md);
+      background: var(--gradient-accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: var(--shadow-glow);
+      color: #fff;
+      font-size: 24px;
+      flex-shrink: 0;
+      position: relative;
+    }
+
+    .brand-icon::after {
+      content: '';
+      position: absolute;
+      inset: -3px;
+      border-radius: inherit;
+      background: var(--gradient-accent);
+      opacity: 0.4;
+      filter: blur(6px);
+      z-index: -1;
+    }
+
+    .brand-text h1 {
+      font-family: var(--font-display);
+      font-size: 1.55rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .brand-text .version-badge {
+      font-size: 0.72rem;
+      font-family: var(--font-mono);
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: var(--radius-full);
+      background: rgba(99, 102, 241, 0.2);
+      color: #818cf8;
+      border: 1px solid rgba(99, 102, 241, 0.3);
+    }
+
+    .brand-text p {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 18px;
+      font-size: 0.92rem;
+      font-weight: 600;
+      border-radius: var(--radius-md);
+      transition: var(--transition);
+      user-select: none;
+      white-space: nowrap;
+    }
+
+    .btn-primary {
+      background: var(--gradient-accent);
+      color: #ffffff;
+      box-shadow: 0 4px 16px rgba(99, 102, 241, 0.35);
+    }
+    .btn-primary:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 22px rgba(99, 102, 241, 0.5);
+    }
+    .btn-primary:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-secondary {
+      background: var(--bg-surface);
+      color: var(--text-main);
+      border: 1px solid var(--border-color);
+    }
+    .btn-secondary:hover {
+      background: var(--bg-surface-hover);
+      border-color: var(--border-focus);
+    }
+
+    .btn-icon {
+      padding: 10px;
+      border-radius: var(--radius-md);
+      background: var(--bg-surface);
+      color: var(--text-muted);
+      border: 1px solid var(--border-color);
+    }
+    .btn-icon:hover {
+      color: var(--text-main);
+      border-color: var(--border-focus);
+    }
+
+    /* ==========================================================================
+       TOP STATUS & DASHBOARD CARDS
+       ========================================================================== */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 1.3fr 1fr;
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+
+    @media (max-width: 960px) {
+      .dashboard-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      background: var(--bg-card);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+      transition: var(--transition);
+    }
+
+    .card:hover {
+      border-color: rgba(255, 255, 255, 0.14);
+      box-shadow: var(--shadow-md);
+    }
+
+    /* Verdict Card */
+    .verdict-card {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      border-left: 5px solid var(--text-subtle);
+    }
+
+    .verdict-card.verdict-clean {
+      border-left-color: var(--clr-success);
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, var(--bg-card) 60%);
+    }
+    .verdict-card.verdict-warning {
+      border-left-color: var(--clr-warning);
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, var(--bg-card) 60%);
+    }
+    .verdict-card.verdict-critical {
+      border-left-color: var(--clr-danger);
+      background: linear-gradient(135deg, rgba(239, 68, 68, 0.12) 0%, var(--bg-card) 60%);
+    }
+
+    .verdict-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .verdict-title {
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      font-weight: 700;
+    }
+
+    .verdict-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: var(--radius-full);
+      font-size: 0.8rem;
+      font-weight: 700;
+    }
+
+    .badge-idle { background: rgba(148, 163, 184, 0.15); color: var(--text-muted); }
+    .badge-clean { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+    .badge-warning { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+    .badge-danger { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+
+    .verdict-main {
+      margin-bottom: 16px;
+    }
+
+    .verdict-status-text {
+      font-family: var(--font-display);
+      font-size: 1.45rem;
+      font-weight: 700;
+      line-height: 1.25;
+      margin-bottom: 6px;
+    }
+
+    .verdict-desc {
+      font-size: 0.92rem;
+      color: var(--text-muted);
+    }
+
+    .verdict-stats-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border-color);
+    }
+
+    @media (max-width: 640px) {
+      .verdict-stats-row {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    .mini-stat {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .mini-stat-val {
+      font-family: var(--font-mono);
+      font-size: 1.3rem;
+      font-weight: 700;
+    }
+
+    .mini-stat-lbl {
+      font-size: 0.75rem;
+      color: var(--text-subtle);
+    }
+
+    /* Network Card */
+    .network-card {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .network-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+
+    .network-info-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .info-tile {
+      background: var(--bg-surface);
+      padding: 10px 14px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-color);
+    }
+
+    .info-tile-lbl {
+      font-size: 0.72rem;
+      color: var(--text-subtle);
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+
+    .info-tile-val {
+      font-family: var(--font-mono);
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--text-main);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .risk-banner {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border-radius: var(--radius-md);
+      background: rgba(99, 102, 241, 0.1);
+      border: 1px solid rgba(99, 102, 241, 0.2);
+      font-size: 0.82rem;
+    }
+
+    /* ==========================================================================
+       PROGRESS BAR
+       ========================================================================== */
+    .progress-bar-container {
+      margin-bottom: 24px;
+      display: none;
+    }
+
+    .progress-bar-container.active {
+      display: block;
+    }
+
+    .progress-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.85rem;
+      margin-bottom: 8px;
+      color: var(--text-muted);
+    }
+
+    .progress-track {
+      height: 8px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: var(--radius-full);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--gradient-accent);
+      border-radius: var(--radius-full);
+      transition: width 0.2s ease;
+      position: relative;
+    }
+
+    .progress-fill::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+      animation: shimmer 1.5s infinite;
+    }
+
+    @keyframes shimmer {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(100%); }
+    }
+
+    /* ==========================================================================
+       NAV TABS
+       ========================================================================== */
+    .nav-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 12px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .nav-tabs::-webkit-scrollbar {
+      display: none;
+    }
+
+    .tab-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 18px;
+      border-radius: var(--radius-md);
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      font-weight: 600;
+      border: 1px solid transparent;
+      white-space: nowrap;
+    }
+
+    .tab-btn:hover {
+      color: var(--text-main);
+      background: var(--bg-surface);
+    }
+
+    .tab-btn.active {
+      background: var(--bg-surface);
+      color: var(--text-main);
+      border-color: var(--border-focus);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .tab-btn .tab-count {
+      font-size: 0.75rem;
+      padding: 2px 6px;
+      border-radius: var(--radius-full);
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    /* ==========================================================================
+       TAB CONTENT PANELS
+       ========================================================================== */
+    .tab-panel {
+      display: none;
+      animation: fadeIn 0.25s ease;
+    }
+    .tab-panel.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Section Headers & Toolbars */
+    .section-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .filter-chips {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .chip {
+      padding: 6px 12px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      border-radius: var(--radius-full);
+      background: var(--bg-surface);
+      color: var(--text-muted);
+      border: 1px solid var(--border-color);
+    }
+    .chip:hover {
+      color: var(--text-main);
+      border-color: var(--border-focus);
+    }
+    .chip.active {
+      background: rgba(99, 102, 241, 0.2);
+      color: #a5b4fc;
+      border-color: var(--clr-primary);
+    }
+
+    /* Search & Inputs */
+    .input-group {
+      display: flex;
+      align-items: center;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 6px 12px;
+      gap: 8px;
+    }
+    .input-group input {
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text-main);
+      font-family: inherit;
+      font-size: 0.88rem;
+      min-width: 180px;
+    }
+    .input-group input::placeholder {
+      color: var(--text-subtle);
+    }
+
+    /* Grid of Resolvers */
+    .resolvers-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .resolver-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      transition: var(--transition);
+      position: relative;
+    }
+
+    .resolver-card:hover {
+      border-color: var(--border-focus);
+      transform: translateY(-2px);
+    }
+
+    .resolver-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .resolver-name {
+      font-weight: 700;
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .resolver-url {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--text-subtle);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .resolver-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.8rem;
+      padding-top: 8px;
+      border-top: 1px solid var(--border-color);
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: var(--radius-full);
+    }
+
+    .status-ok { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+    .status-blocked { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+    .status-pending { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+    .status-idle { background: rgba(148, 163, 184, 0.1); color: var(--text-muted); }
+
+    /* Tables */
+    .table-container {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      overflow-x: auto;
+      margin-bottom: 24px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.88rem;
+    }
+
+    th {
+      background: rgba(15, 23, 42, 0.8);
+      color: var(--text-muted);
+      font-weight: 600;
+      padding: 12px 16px;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-color);
+      vertical-align: middle;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .domain-cell {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .domain-name {
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .domain-cat {
+      font-size: 0.75rem;
+      color: var(--text-subtle);
+    }
+
+    .ip-list {
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      color: #93c5fd;
+      word-break: break-all;
+    }
+
+    /* CLI & Companion Box */
+    .cli-box {
+      background: #020408;
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      border-radius: var(--radius-md);
+      padding: 20px;
+      margin-bottom: 24px;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+    }
+
+    .cli-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .cli-command-row {
+      display: flex;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      color: #38bdf8;
+      justify-content: space-between;
+      gap: 12px;
+      overflow-x: auto;
+    }
+
+    .cli-command-text {
+      white-space: nowrap;
+      user-select: all;
+    }
+
+    /* Live Terminal Console */
+    .terminal-card {
+      background: #010409;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      margin-bottom: 24px;
+    }
+
+    .terminal-header {
+      background: #0d1117;
+      padding: 8px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .terminal-dots {
+      display: flex;
+      gap: 6px;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+    .dot-red { background: #ff5f56; }
+    .dot-yellow { background: #ffbd2e; }
+    .dot-green { background: #27c93f; }
+
+    .terminal-body {
+      padding: 14px;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      height: 220px;
+      overflow-y: auto;
+      color: #c9d1d9;
+      line-height: 1.5;
+    }
+
+    .log-line {
+      margin-bottom: 3px;
+      word-break: break-all;
+    }
+
+    .log-time { color: #6e7681; }
+    .log-info { color: #58a6ff; }
+    .log-success { color: #3fb950; }
+    .log-warn { color: #d29922; }
+    .log-err { color: #f85149; }
+
+    /* Guides Accordion */
+    .guides-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 16px;
+    }
+
+    .guide-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 20px;
+    }
+
+    .guide-card h3 {
+      font-size: 1.05rem;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .guide-card ol, .guide-card ul {
+      padding-left: 20px;
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .guide-card code {
+      font-family: var(--font-mono);
+      background: rgba(255, 255, 255, 0.08);
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: #93c5fd;
+      font-size: 0.82rem;
+    }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(8px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 20px;
+    }
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal-content {
+      background: var(--bg-card-solid);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      max-width: 600px;
+      width: 100%;
+      padding: 24px;
+      box-shadow: var(--shadow-md);
+      max-height: 85vh;
+      overflow-y: auto;
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    /* Toast Notification */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      padding: 12px 20px;
+      background: #1e293b;
+      color: #fff;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-focus);
+      box-shadow: var(--shadow-md);
+      font-size: 0.88rem;
+      display: none;
+      align-items: center;
+      gap: 8px;
+      z-index: 2000;
+      animation: slideInUp 0.25s ease;
+    }
+    .toast.active { display: flex; }
+
+    @keyframes slideInUp {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    /* Footer */
+    .footer {
+      margin-top: 40px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+      color: var(--text-subtle);
+      font-size: 0.85rem;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    
+    <!-- HEADER -->
+    <header class="header">
+      <div class="header-top">
+        <div class="brand">
+          <div class="brand-icon">🛡️</div>
+          <div class="brand-text">
+            <h1>
+              DNS Interception & RKN Detector
+              <span class="version-badge">v2.0 Web</span>
+            </h1>
+            <p>Проверка вмешательства ТСПУ (РКН) и провайдеров в DNS, блокировок DoH и подмены IP</p>
+          </div>
+        </div>
+
+        <div class="header-actions">
+          <button id="themeToggleBtn" class="btn btn-icon" title="Сменить тему оформления">🌓</button>
+          <button id="btnShareModal" class="btn btn-secondary">
+            <span>📤</span> Поделиться
+          </button>
+          <button id="btnStartScan" class="btn btn-primary">
+            <span id="scanBtnIcon">⚡</span>
+            <span id="scanBtnText">Запустить аудит</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- DASHBOARD: VERDICT & NETWORK STATS -->
+    <div class="dashboard-grid">
+      
+      <!-- Primary Security Verdict Card -->
+      <div id="verdictCard" class="card verdict-card">
+        <div>
+          <div class="verdict-header">
+            <span class="verdict-title">Итоговый вердикт безопасности</span>
+            <span id="verdictBadge" class="verdict-badge badge-idle">Ожидание запуска</span>
+          </div>
+          <div class="verdict-main">
+            <div id="verdictStatusText" class="verdict-status-text">Готов к сканированию</div>
+            <p id="verdictDesc" class="verdict-desc">Нажмите «Запустить аудит», чтобы протестировать доступность DoH резолверов, целостность ответов и отсутствие инъекций ТСПУ.</p>
+          </div>
+        </div>
+
+        <div class="verdict-stats-row">
+          <div class="mini-stat">
+            <span id="statDohRate" class="mini-stat-val">--%</span>
+            <span class="mini-stat-lbl">Доступность DoH</span>
+          </div>
+          <div class="mini-stat">
+            <span id="statSpoofed" class="mini-stat-val" style="color: var(--clr-success);">0</span>
+            <span class="mini-stat-lbl">Подмен IP (Bogon)</span>
+          </div>
+          <div class="mini-stat">
+            <span id="statBlockedDoh" class="mini-stat-val" style="color: var(--text-muted);">0</span>
+            <span class="mini-stat-lbl">Блокировок DoH</span>
+          </div>
+          <div class="mini-stat">
+            <span id="statAvgLatency" class="mini-stat-val">-- мс</span>
+            <span class="mini-stat-lbl">Средний RTT</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Network & Environment Card -->
+      <div class="card network-card">
+        <div class="network-header">
+          <span class="verdict-title">Параметры соединения (Клиент)</span>
+          <button id="btnRefreshNet" class="btn-icon" style="padding: 4px 8px; font-size: 0.75rem;" title="Обновить данные сети">🔄</button>
+        </div>
+
+        <div class="network-info-grid">
+          <div class="info-tile">
+            <div class="info-tile-lbl">Публичный IP</div>
+            <div id="netIp" class="info-tile-val">Определение...</div>
+          </div>
+          <div class="info-tile">
+            <div class="info-tile-lbl">Провайдер (ISP / ASN)</div>
+            <div id="netIsp" class="info-tile-val">Определение...</div>
+          </div>
+          <div class="info-tile">
+            <div class="info-tile-lbl">Страна / Город</div>
+            <div id="netGeo" class="info-tile-val">Определение...</div>
+          </div>
+          <div class="info-tile">
+            <div class="info-tile-lbl">Тип сети</div>
+            <div id="netType" class="info-tile-val">Прямое подключение</div>
+          </div>
+        </div>
+
+        <div id="riskBanner" class="risk-banner">
+          <span>ℹ️</span>
+          <span id="riskBannerText">Определение зоны фильтрации сети...</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- PROGRESS BAR -->
+    <div id="progressBarContainer" class="progress-bar-container">
+      <div class="progress-header">
+        <span id="progressStepText">Инициализация тестов...</span>
+        <span id="progressPercent">0%</span>
+      </div>
+      <div class="progress-track">
+        <div id="progressFill" class="progress-fill"></div>
+      </div>
+    </div>
+
+    <!-- NAVIGATION TABS -->
+    <div class="nav-tabs">
+      <button class="tab-btn active" data-tab="tab-doh">
+        <span>⚡</span> DoH Резолверы
+        <span id="tabCountDoh" class="tab-count">8</span>
+      </button>
+      <button class="tab-btn" data-tab="tab-domains">
+        <span>🌐</span> Аудит Доменов
+        <span id="tabCountDomains" class="tab-count">18</span>
+      </button>
+      <button class="tab-btn" data-tab="tab-cli">
+        <span>💻</span> Socket / UDP:53 Тест (CLI)
+      </button>
+      <button class="tab-btn" data-tab="tab-guides">
+        <span>🛠️</span> Как настроить и обойти
+      </button>
+      <button class="tab-btn" data-tab="tab-terminal">
+        <span>📟</span> Лог-терминал
+      </button>
+    </div>
+
+    <!-- ==========================================================================
+         TAB 1: DOH RESOLVERS
+         ========================================================================== -->
+    <div id="tab-doh" class="tab-panel active">
+      <div class="section-toolbar">
+        <div>
+          <h2 style="font-size: 1.15rem; font-weight: 700;">DNS-over-HTTPS (DoH :443) Провайдеры</h2>
+          <p style="font-size: 0.85rem; color: var(--text-muted);">Проверка доступности зашифрованных эндпоинтов RFC 8484 и DNS-JSON в вашей сети.</p>
+        </div>
+        <div class="filter-chips">
+          <button class="chip active" data-filter-doh="all">Все</button>
+          <button class="chip" data-filter-doh="ok">Работают</button>
+          <button class="chip" data-filter-doh="blocked">Заблокированы ТСПУ</button>
+        </div>
+      </div>
+
+      <div id="resolversGrid" class="resolvers-grid">
+        <!-- Generated by JavaScript -->
+      </div>
+    </div>
+
+    <!-- ==========================================================================
+         TAB 2: DOMAIN AUDIT
+         ========================================================================== -->
+    <div id="tab-domains" class="tab-panel">
+      <div class="section-toolbar">
+        <div class="filter-chips" id="domainCategoryChips">
+          <button class="chip active" data-cat="all">Все категории</button>
+          <button class="chip" data-cat="social">Соцсети</button>
+          <button class="chip" data-cat="streaming">Стриминг / YouTube</button>
+          <button class="chip" data-cat="media">СМИ</button>
+          <button class="chip" data-cat="torrents">Торренты</button>
+          <button class="chip" data-cat="vpn">VPN / Privacy</button>
+          <button class="chip" data-cat="control">Контрольные (Чистые)</button>
+        </div>
+
+        <div class="input-group">
+          <span>🔍</span>
+          <input type="text" id="domainSearchInput" placeholder="Поиск домена...">
+        </div>
+      </div>
+
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Домен и Категория</th>
+              <th>DoH Резолвинг</th>
+              <th>Полученные IP-адреса</th>
+              <th>Задержка</th>
+              <th>Вердикт подмены</th>
+            </tr>
+          </thead>
+          <tbody id="domainsTableBody">
+            <!-- Generated by JavaScript -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ==========================================================================
+         TAB 3: RAW UDP:53 & CLI COMPANION
+         ========================================================================== -->
+    <div id="tab-cli" class="tab-panel">
+      
+      <div class="cli-box">
+        <div class="cli-header">
+          <div>
+            <h3 style="color: #38bdf8; font-size: 1.1rem;">🧪 Полный низкоуровневый тест сокетов (UDP:53, DoT:853, Гонка пакетов)</h3>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">
+              Браузеры изолированы от прямого создания UDP-пакетов на порт 53. Для детекции <b>флага AA в NXDOMAIN</b>, <b>фиктивных IP (192.0.2.1)</b> и <b>гонки пакетов ТСПУ</b> запустите скрипт через терминал:
+            </p>
+          </div>
+        </div>
+
+        <div class="cli-command-row">
+          <span id="cliCommandText" class="cli-command-text">curl -sSL https://raw.githubusercontent.com/yanpurvenes/dns-interception-checker/main/check_dns_interception.py | python3</span>
+          <button id="btnCopyCli" class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.8rem;">
+            📋 Копировать
+          </button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom: 24px;">
+        <h3 style="font-size: 1.1rem; margin-bottom: 14px;">Что проверяет консольный скрипт:</h3>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; font-size: 0.88rem; color: var(--text-muted);">
+          <div style="background: var(--bg-surface); padding: 12px; border-radius: var(--radius-md);">
+            <strong style="color: var(--text-main); display: block; margin-bottom: 4px;">1. Флаг AA в NXDOMAIN</strong>
+            Детектирует фальшивые ответы от оборудования ТСПУ, которое выдает себя за авторитетный сервер чужого домена.
+          </div>
+          <div style="background: var(--bg-surface); padding: 12px; border-radius: var(--radius-md);">
+            <strong style="color: var(--text-main); display: block; margin-bottom: 4px;">2. Гонка пакетов (Packet Racing)</strong>
+            Фиксирует приход двух ответов на 1 запрос: мгновенная инъекция цензора + легитимный ответ от резолвера.
+          </div>
+          <div style="background: var(--bg-surface); padding: 12px; border-radius: var(--radius-md);">
+            <strong style="color: var(--text-main); display: block; margin-bottom: 4px;">3. Перехват фиктивных IP</strong>
+            Отправка UDP:53 запроса на <code>192.0.2.53</code>. Если ответ пришел — провайдер перехватывает ВЕСЬ 53 порт.
+          </div>
+          <div style="background: var(--bg-surface); padding: 12px; border-radius: var(--radius-md);">
+            <strong style="color: var(--text-main); display: block; margin-bottom: 4px;">4. DoT:853 Handshake</strong>
+            Прямая проверка блокировки TLS порта 853 и фильтрации SNI зашифрованного DNS.
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ==========================================================================
+         TAB 4: HOW TO FIX & BYPASS GUIDES
+         ========================================================================== -->
+    <div id="tab-guides" class="tab-panel">
+      <div class="guides-grid">
+        
+        <div class="guide-card">
+          <h3>🌐 Chrome / Brave / Edge / Yandex</h3>
+          <ol>
+            <li>Откройте <code>Настройки</code> → <code>Конфиденциальность и безопасность</code>.</li>
+            <li>Выберите <code>Безопасность</code> → <code>Использовать безопасный DNS-сервер</code>.</li>
+            <li>Включите режим <b>«С указанием поставщика»</b>.</li>
+            <li>Укажите пользовательский DoH URL (например, <code>https://dns.adguard-dns.com/dns-query</code> или Cloudflare).</li>
+            <li>Включите ECH в <code>chrome://flags/#encrypted-client-hello</code>.</li>
+          </ol>
+        </div>
+
+        <div class="guide-card">
+          <h3>🦊 Mozilla Firefox (Максимальная защита)</h3>
+          <ol>
+            <li>Откройте <code>Настройки</code> → <code>Приватность и защита</code>.</li>
+            <li>Прокрутите вниз до раздела <b>DNS поверх HTTPS</b>.</li>
+            <li>Выберите <b>«Повышенная»</b> или <b>«Максимальная защита»</b>.</li>
+            <li>Укажите надежный DoH провайдер (NextDNS / Cloudflare / AdGuard).</li>
+            <li>Firefox автоматически активирует ECH (Encrypted Client Hello).</li>
+          </ol>
+        </div>
+
+        <div class="guide-card">
+          <h3>🍏 iOS / iPadOS / macOS</h3>
+          <ol>
+            <li>Установите официальный профиль шифрованного DNS (DoH/DoT).</li>
+            <li>Или используйте приложения <b>AdGuard</b>, <b>NextDNS</b> или <b>1.1.1.1</b>.</li>
+            <li>На macOS в настройках сети: <code>Сеть</code> → <code>DNS</code> → добавьте DoH профиль.</li>
+          </ol>
+        </div>
+
+        <div class="guide-card">
+          <h3>🤖 Android (Private DNS)</h3>
+          <ol>
+            <li>Откройте <code>Настройки</code> → <code>Сеть и интернет</code> / <code>Подключения</code>.</li>
+            <li>Выберите <b>«Персональный DNS-сервер»</b> (Private DNS).</li>
+            <li>Укажите имя хоста: <code>dns.adguard-dns.com</code>, <code>one.one.one.one</code> или <code>dns.quad9.net</code>.</li>
+            <li>Весь трафик приложений будет шифроваться по TLS (порт 853).</li>
+          </ol>
+        </div>
+
+        <div class="guide-card">
+          <h3>🛡️ Утилиты обхода ТСПУ (DPI Bypass)</h3>
+          <ul>
+            <li><b>Zapret / GoodbyeDPI / ByeDPI</b>: фрагментируют SNI и обходят сигнатурный анализ ТСПУ.</li>
+            <li><b>Amnezia VPN / VLESS Reality</b>: маскируют весь трафик под легитимный HTTPS трафик зарубежных CDN.</li>
+            <li><b>DNSCrypt / dnscrypt-proxy</b>: локальный шифрующий прокси с поддержкой анонимизированных релеев (Anonymized DNS).</li>
+          </ul>
+        </div>
+
+        <div class="guide-card">
+          <h3>⚠️ Что делать, если DoH блокируют?</h3>
+          <ul>
+            <li>Используйте DoH по прямому IP без SNI (например, резолвинг через нестандартные порты).</li>
+            <li>Включите ECH (Encrypted Client Hello) в браузере.</li>
+            <li>Настройте персональный DoH прокси на своем сервере (AdGuard Home / Pi-hole / DNS-over-HTTPS).</li>
+          </ul>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ==========================================================================
+         TAB 5: LIVE LOG TERMINAL
+         ========================================================================== -->
+    <div id="tab-terminal" class="tab-panel">
+      <div class="terminal-card">
+        <div class="terminal-header">
+          <div class="terminal-dots">
+            <span class="dot dot-red"></span>
+            <span class="dot dot-yellow"></span>
+            <span class="dot dot-green"></span>
+          </div>
+          <div style="font-family: var(--font-mono); font-size: 0.75rem; color: #8b949e;">Console Live Stream</div>
+          <div style="display: flex; gap: 6px;">
+            <button id="btnClearLog" class="btn-icon" style="padding: 2px 8px; font-size: 0.75rem;">Очистить</button>
+            <button id="btnCopyLog" class="btn-icon" style="padding: 2px 8px; font-size: 0.75rem;">Копировать</button>
+          </div>
+        </div>
+        <div id="terminalBody" class="terminal-body">
+          <div class="log-line"><span class="log-time">[00:00:00]</span> <span class="log-info">[INIT]</span> Детектор DNS-перехвата готов. Ожидание команды пользователя.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+      <div>
+        <span>DNS Interception & RKN DPI Detector © 2026. Standalone GitHub Pages Tool.</span>
+      </div>
+      <div style="display: flex; gap: 14px;">
+        <a href="https://github.com/yanpurvenes/dns-interception-checker" target="_blank">GitHub Repository</a>
+        <a href="javascript:void(0)" id="btnExportJson">Экспорт JSON</a>
+      </div>
+    </footer>
+
+  </div>
+
+  <!-- SHARE / EXPORT MODAL -->
+  <div id="shareModal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 style="font-size: 1.15rem; font-weight: 700;">Поделиться результатом</h3>
+        <button id="btnCloseShareModal" class="btn-icon" style="padding: 4px 8px;">✕</button>
+      </div>
+      <p style="font-size: 0.88rem; color: var(--text-muted); margin-bottom: 14px;">
+        Скопируйте форматированный отчет для отправки в Telegram, чаты или баг-репорты:
+      </p>
+      <textarea id="shareReportText" readonly style="width: 100%; height: 180px; background: #070a13; border: 1px solid var(--border-color); border-radius: var(--radius-sm); color: #93c5fd; font-family: var(--font-mono); font-size: 0.8rem; padding: 12px; resize: none; margin-bottom: 14px; outline: none;"></textarea>
+      <div style="display: flex; justify-content: flex-end; gap: 10px;">
+        <button id="btnCopyShareText" class="btn btn-primary">📋 Скопировать текст</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION -->
+  <div id="toast" class="toast">
+    <span id="toastIcon">📋</span>
+    <span id="toastMsg">Скопировано в буфер обмена!</span>
+  </div>
+
+  <!-- ==========================================================================
+       JAVASCRIPT LOGIC ENGINE
+       ========================================================================== -->
+  <script>
+    (function() {
+      'use strict';
+
+      // --- CONFIGURATION: RESOLVERS ---
+      const RESOLVERS = [
+        {
+          id: 'cloudflare',
+          name: 'Cloudflare DNS',
+          url: 'https://cloudflare-dns.com/dns-query',
+          jsonSupport: true,
+          ip: '1.1.1.1',
+          desc: 'Быстрый глобальный Anycast DoH'
+        },
+        {
+          id: 'google',
+          name: 'Google Public DNS',
+          url: 'https://dns.google/dns-query',
+          jsonSupport: true,
+          ip: '8.8.8.8',
+          desc: 'RFC 8484 + Google DNS-JSON API'
+        },
+        {
+          id: 'quad9',
+          name: 'Quad9 DNS (Secure)',
+          url: 'https://dns.quad9.net/dns-query',
+          jsonSupport: true,
+          ip: '9.9.9.9',
+          desc: 'Швейцарский защищенный приватный DoH'
+        },
+        {
+          id: 'adguard',
+          name: 'AdGuard DNS',
+          url: 'https://dns.adguard-dns.com/dns-query',
+          jsonSupport: true,
+          ip: '94.140.14.14',
+          desc: 'Блокировка рекламы и трекеров'
+        },
+        {
+          id: 'nextdns',
+          name: 'NextDNS (Public)',
+          url: 'https://dns.nextdns.io/dns-query',
+          jsonSupport: true,
+          ip: '45.90.28.0',
+          desc: 'Кастомизируемый DoH сервис'
+        },
+        {
+          id: 'controld',
+          name: 'ControlD (Free DNS)',
+          url: 'https://freedns.controld.com/p0',
+          jsonSupport: false,
+          ip: '76.76.2.0',
+          desc: 'Anycast DNS с защитой от цензуры'
+        },
+        {
+          id: 'yandex',
+          name: 'Yandex DNS (RU)',
+          url: 'https://common.dot.dns.yandex.net/dns-query',
+          jsonSupport: true,
+          ip: '77.88.8.8',
+          desc: 'Российский локальный резолвер'
+        },
+        {
+          id: 'opendns',
+          name: 'OpenDNS (Cisco)',
+          url: 'https://doh.opendns.com/dns-query',
+          jsonSupport: false,
+          ip: '208.67.222.222',
+          desc: 'Cisco Umbrella DoH Anycast'
+        }
+      ];
+
+      // --- CONFIGURATION: DOMAINS ---
+      const DOMAINS = [
+        // Video & Streaming
+        { domain: 'youtube.com', category: 'streaming', catName: 'Стриминг' },
+        { domain: 'vimeo.com', category: 'streaming', catName: 'Стриминг' },
+        { domain: 'soundcloud.com', category: 'streaming', catName: 'Стриминг' },
+        
+        // Social Networks
+        { domain: 'instagram.com', category: 'social', catName: 'Соцсети' },
+        { domain: 'facebook.com', category: 'social', catName: 'Соцсети' },
+        { domain: 'x.com', category: 'social', catName: 'Соцсети' },
+        { domain: 'twitter.com', category: 'social', catName: 'Соцсети' },
+        { domain: 'threads.net', category: 'social', catName: 'Соцсети' },
+        { domain: 'discord.com', category: 'social', catName: 'Соцсети' },
+
+        // Media & News
+        { domain: 'meduza.io', category: 'media', catName: 'СМИ' },
+        { domain: 'zona.media', category: 'media', catName: 'СМИ' },
+        { domain: 'dw.com', category: 'media', catName: 'СМИ' },
+        { domain: 'bbc.com', category: 'media', catName: 'СМИ' },
+
+        // Torrents & Trackers
+        { domain: 'rutracker.org', category: 'torrents', catName: 'Торренты' },
+        { domain: 'flibusta.is', category: 'torrents', catName: 'Библиотеки' },
+        { domain: 'rutor.info', category: 'torrents', catName: 'Торренты' },
+
+        // VPN & Anti-Censorship
+        { domain: 'ntc.party', category: 'vpn', catName: 'Форум обхода' },
+        { domain: 'torproject.org', category: 'vpn', catName: 'Tor Project' },
+        { domain: 'proton.me', category: 'vpn', catName: 'Proton VPN/Mail' },
+        { domain: 'mullvad.net', category: 'vpn', catName: 'Mullvad VPN' },
+
+        // Control (Clean / Legitimate in RU)
+        { domain: 'google.com', category: 'control', catName: 'Контрольный' },
+        { domain: 'wikipedia.org', category: 'control', catName: 'Контрольный' },
+        { domain: 'github.com', category: 'control', catName: 'Контрольный' },
+        { domain: 'yandex.ru', category: 'control', catName: 'Контрольный' }
+      ];
+
+      // Bogon IPs commonly injected by RKN / ISPs
+      const BOGON_IPS = new Set([
+        '127.0.0.1', '0.0.0.0', '10.0.0.0', '10.254.254.254',
+        '195.82.146.120', '195.82.146.121', '80.80.80.80'
+      ]);
+
+      // --- STATE STORE ---
+      const state = {
+        scanning: false,
+        theme: 'dark',
+        network: {
+          ip: null,
+          isp: null,
+          asn: null,
+          country: null,
+          city: null,
+          isRussia: false
+        },
+        resolversResults: {}, // resolverId -> { status, latency, error, answers }
+        domainsResults: {},   // domain -> { dohIps: [], status, verdict, latency }
+        stats: {
+          dohTested: 0,
+          dohSuccess: 0,
+          dohBlocked: 0,
+          spoofedDomains: 0,
+          avgLatency: 0
+        }
+      };
+
+      // --- DOM ELEMENTS ---
+      const els = {
+        btnStartScan: document.getElementById('btnStartScan'),
+        scanBtnText: document.getElementById('scanBtnText'),
+        scanBtnIcon: document.getElementById('scanBtnIcon'),
+        themeToggleBtn: document.getElementById('themeToggleBtn'),
+        btnShareModal: document.getElementById('btnShareModal'),
+        btnCloseShareModal: document.getElementById('btnCloseShareModal'),
+        btnCopyShareText: document.getElementById('btnCopyShareText'),
+        btnExportJson: document.getElementById('btnExportJson'),
+        btnCopyCli: document.getElementById('btnCopyCli'),
+        btnClearLog: document.getElementById('btnClearLog'),
+        btnCopyLog: document.getElementById('btnCopyLog'),
+        btnRefreshNet: document.getElementById('btnRefreshNet'),
+        shareModal: document.getElementById('shareModal'),
+        shareReportText: document.getElementById('shareReportText'),
+        toast: document.getElementById('toast'),
+        toastMsg: document.getElementById('toastMsg'),
+        
+        verdictCard: document.getElementById('verdictCard'),
+        verdictBadge: document.getElementById('verdictBadge'),
+        verdictStatusText: document.getElementById('verdictStatusText'),
+        verdictDesc: document.getElementById('verdictDesc'),
+        
+        statDohRate: document.getElementById('statDohRate'),
+        statSpoofed: document.getElementById('statSpoofed'),
+        statBlockedDoh: document.getElementById('statBlockedDoh'),
+        statAvgLatency: document.getElementById('statAvgLatency'),
+        
+        netIp: document.getElementById('netIp'),
+        netIsp: document.getElementById('netIsp'),
+        netGeo: document.getElementById('netGeo'),
+        netType: document.getElementById('netType'),
+        riskBanner: document.getElementById('riskBanner'),
+        riskBannerText: document.getElementById('riskBannerText'),
+        
+        progressBarContainer: document.getElementById('progressBarContainer'),
+        progressFill: document.getElementById('progressFill'),
+        progressPercent: document.getElementById('progressPercent'),
+        progressStepText: document.getElementById('progressStepText'),
+        
+        resolversGrid: document.getElementById('resolversGrid'),
+        domainsTableBody: document.getElementById('domainsTableBody'),
+        terminalBody: document.getElementById('terminalBody'),
+        domainSearchInput: document.getElementById('domainSearchInput')
+      };
+
+      // --- INITIALIZATION ---
+      function init() {
+        setupTabs();
+        setupTheme();
+        renderResolvers();
+        renderDomainsTable();
+        setupEventListeners();
+        detectNetworkInfo();
+        log('INIT', 'Интерфейс инициализирован. База доменов: ' + DOMAINS.length + ', резолверов: ' + RESOLVERS.length);
+      }
+
+      // --- TABS SETUP ---
+      function setupTabs() {
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+            
+            btn.classList.add('active');
+            const target = btn.getAttribute('data-tab');
+            const panel = document.getElementById(target);
+            if (panel) panel.classList.add('active');
+          });
+        });
+      }
+
+      // --- THEME SETUP ---
+      function setupTheme() {
+        const saved = localStorage.getItem('dns_checker_theme') || 'dark';
+        setTheme(saved);
+        els.themeToggleBtn.addEventListener('click', () => {
+          const themes = ['dark', 'cyberpunk', 'light'];
+          const next = themes[(themes.indexOf(state.theme) + 1) % themes.length];
+          setTheme(next);
+        });
+      }
+
+      function setTheme(theme) {
+        state.theme = theme;
+        document.body.classList.remove('theme-cyberpunk', 'theme-light');
+        if (theme === 'cyberpunk') document.body.classList.add('theme-cyberpunk');
+        if (theme === 'light') document.body.classList.add('theme-light');
+        localStorage.setItem('dns_checker_theme', theme);
+      }
+
+      // --- LOGGING ---
+      function log(level, message) {
+        const time = new Date().toTimeString().split(' ')[0];
+        const row = document.createElement('div');
+        row.className = 'log-line';
+        
+        let cls = 'log-info';
+        if (level === 'SUCCESS') cls = 'log-success';
+        if (level === 'WARN') cls = 'log-warn';
+        if (level === 'ERROR') cls = 'log-err';
+        
+        row.innerHTML = `<span class="log-time">[${time}]</span> <span class="${cls}">[${level}]</span> ${escapeHtml(message)}`;
+        els.terminalBody.appendChild(row);
+        els.terminalBody.scrollTop = els.terminalBody.scrollHeight;
+      }
+
+      function showToast(msg, icon = '📋') {
+        els.toastMsg.textContent = msg;
+        document.getElementById('toastIcon').textContent = icon;
+        els.toast.classList.add('active');
+        setTimeout(() => els.toast.classList.remove('active'), 2500);
+      }
+
+      function escapeHtml(str) {
+        return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]);
+      }
+
+      // --- RENDER RESOLVERS GRID ---
+      function renderResolvers() {
+        els.resolversGrid.innerHTML = '';
+        RESOLVERS.forEach(res => {
+          const card = document.createElement('div');
+          card.className = 'resolver-card';
+          card.id = `resolver-card-${res.id}`;
+          
+          card.innerHTML = `
+            <div class="resolver-card-header">
+              <div>
+                <div class="resolver-name">${escapeHtml(res.name)}</div>
+                <div class="resolver-url">${escapeHtml(res.url)}</div>
+              </div>
+              <span id="res-status-${res.id}" class="status-pill status-idle">Ожидание</span>
+            </div>
+            <div style="font-size: 0.8rem; color: var(--text-muted);">${escapeHtml(res.desc)}</div>
+            <div class="resolver-meta">
+              <span style="color: var(--text-subtle);">IP: <code>${res.ip}</code></span>
+              <span id="res-rtt-${res.id}" style="font-family: var(--font-mono); font-weight: 600; color: var(--text-main);">-- мс</span>
+            </div>
+          `;
+          els.resolversGrid.appendChild(card);
+        });
+      }
+
+      // --- RENDER DOMAINS TABLE ---
+      function renderDomainsTable(filterCategory = 'all', searchQuery = '') {
+        els.domainsTableBody.innerHTML = '';
+        const filtered = DOMAINS.filter(d => {
+          const matchCat = filterCategory === 'all' || d.category === filterCategory;
+          const matchSearch = !searchQuery || d.domain.toLowerCase().includes(searchQuery.toLowerCase());
+          return matchCat && matchSearch;
+        });
+
+        filtered.forEach(d => {
+          const row = document.createElement('tr');
+          row.id = `domain-row-${d.domain.replace(/\./g, '_')}`;
+          
+          row.innerHTML = `
+            <td>
+              <div class="domain-cell">
+                <span class="domain-name">${escapeHtml(d.domain)}</span>
+                <span class="domain-cat">${escapeHtml(d.catName)}</span>
+              </div>
+            </td>
+            <td>
+              <span id="dom-status-${d.domain.replace(/\./g, '_')}" class="status-pill status-idle">Не проверен</span>
+            </td>
+            <td>
+              <span id="dom-ips-${d.domain.replace(/\./g, '_')}" class="ip-list">--</span>
+            </td>
+            <td>
+              <span id="dom-rtt-${d.domain.replace(/\./g, '_')}" style="font-family: var(--font-mono);">--</span>
+            </td>
+            <td>
+              <span id="dom-verdict-${d.domain.replace(/\./g, '_')}" class="status-pill status-idle">--</span>
+            </td>
+          `;
+          els.domainsTableBody.appendChild(row);
+        });
+      }
+
+      // --- NETWORK & ISP DETECTION ---
+      async function detectNetworkInfo() {
+        els.netIp.textContent = 'Определение...';
+        els.netIsp.textContent = 'Определение...';
+        els.netGeo.textContent = 'Определение...';
+        
+        try {
+          // Probe 1: ipapi.co
+          const res = await fetch('https://ipapi.co/json/', { cache: 'no-store' });
+          if (res.ok) {
+            const data = await res.json();
+            applyNetData({
+              ip: data.ip,
+              isp: data.org || data.asn,
+              asn: data.asn,
+              country: data.country_name || data.country,
+              city: data.city,
+              countryCode: data.country_code
+            });
+            return;
+          }
+        } catch (e) {
+          // Fallback to Cloudflare trace
+          try {
+            const cfRes = await fetch('https://1.1.1.1/cdn-cgi/trace');
+            if (cfRes.ok) {
+              const text = await cfRes.text();
+              const lines = text.split('\n');
+              const cfData = {};
+              lines.forEach(l => {
+                const parts = l.split('=');
+                if (parts.length === 2) cfData[parts[0]] = parts[1];
+              });
+              applyNetData({
+                ip: cfData.ip || 'Скрыт',
+                isp: 'Cloudflare Trace',
+                asn: 'AS' + (cfData.asn || 'Unknown'),
+                country: cfData.loc || 'Неизвестно',
+                city: '',
+                countryCode: cfData.loc
+              });
+              return;
+            }
+          } catch (err2) {
+            log('WARN', 'Не удалось определить IP через внешние сервисы');
+          }
+        }
+
+        applyNetData({
+          ip: 'Локальный / VPN',
+          isp: 'Не определен',
+          asn: '--',
+          country: 'Не определено',
+          city: '',
+          countryCode: 'XX'
+        });
+      }
+
+      function applyNetData(data) {
+        state.network = data;
+        state.network.isRussia = data.countryCode === 'RU' || /russia|россия/i.test(data.country);
+
+        els.netIp.textContent = data.ip || '--';
+        els.netIsp.textContent = `${data.isp || ''} (${data.asn || ''})`;
+        els.netGeo.textContent = `${data.country || ''} ${data.city ? ', ' + data.city : ''}`;
+        
+        if (state.network.isRussia) {
+          els.netType.textContent = 'Прямое (РФ / ТСПУ)';
+          els.netType.style.color = '#fbbf24';
+          els.riskBanner.style.background = 'rgba(245, 158, 11, 0.15)';
+          els.riskBanner.style.borderColor = 'rgba(245, 158, 11, 0.3)';
+          els.riskBannerText.innerHTML = '⚠️ Соединение в <b>зоне РФ</b>: активен DPI ТСПУ. Открытый DNS (UDP:53) и незашифрованный трафик подвержены цензуре.';
+          log('WARN', `Обнаружен IP из зоны РФ (${data.ip}, ${data.isp}). Высокая вероятность фильтрации ТСПУ.`);
+        } else {
+          els.netType.textContent = 'Зарубежное / VPN';
+          els.netType.style.color = '#34d399';
+          els.riskBanner.style.background = 'rgba(16, 185, 129, 0.12)';
+          els.riskBanner.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+          els.riskBannerText.innerHTML = '✅ Соединение за пределами РФ (или активен VPN): прямое вмешательство ТСПУ маловероятно.';
+          log('INFO', `IP адрес за пределами РФ (${data.country}, ${data.isp}).`);
+        }
+      }
+
+      // ==========================================================================
+      // DNS & DOH QUERY ENGINE (RFC 8484 & DNS-JSON)
+      // ==========================================================================
+
+      // Builds standard RFC 1035 wireformat DNS query packet for Type A
+      function buildDnsWireQuery(domain) {
+        const txId = Math.floor(Math.random() * 65535);
+        const parts = domain.trim().replace(/\.$/, '').split('.');
+        
+        // Calculate qname length
+        let qnameLen = 1; // trailing null
+        for (const p of parts) qnameLen += 1 + new TextEncoder().encode(p).length;
+        
+        const packet = new Uint8Array(12 + qnameLen + 4);
+        const view = new DataView(packet.buffer);
+        
+        // Header
+        view.setUint16(0, txId);      // Transaction ID
+        view.setUint16(2, 0x0100);    // Flags: Standard query, Recursion Desired (RD=1)
+        view.setUint16(4, 1);         // QDCOUNT: 1 question
+        view.setUint16(6, 0);         // ANCOUNT: 0
+        view.setUint16(8, 0);         // NSCOUNT: 0
+        view.setUint16(10, 0);        // ARCOUNT: 0
+        
+        // QNAME
+        let offset = 12;
+        for (const p of parts) {
+          const enc = new TextEncoder().encode(p);
+          packet[offset++] = enc.length;
+          packet.set(enc, offset);
+          offset += enc.length;
+        }
+        packet[offset++] = 0; // null terminator
+        
+        // QTYPE = 1 (A), QCLASS = 1 (IN)
+        view.setUint16(offset, 1);
+        view.setUint16(offset + 2, 1);
+        
+        return packet;
+      }
+
+      // Base64URL encode Uint8Array
+      function base64UrlEncode(bytes) {
+        let binary = '';
+        for (let i = 0; i < bytes.byteLength; i++) {
+          binary += String.fromCharCode(bytes[i]);
+        }
+        return btoa(binary)
+          .replace(/\+/g, '-')
+          .replace(/\//g, '_')
+          .replace(/=+$/, '');
+      }
+
+      // Parses binary DNS response packet (RFC 1035)
+      function parseDnsWireResponse(buffer) {
+        if (buffer.byteLength < 12) return null;
+        const view = new DataView(buffer);
+        const txId = view.getUint16(0);
+        const flags = view.getUint16(2);
+        const qdcount = view.getUint16(4);
+        const ancount = view.getUint16(6);
+        
+        const qr = (flags >> 15) & 1;
+        const aa = (flags >> 10) & 1;
+        const rcode = flags & 0x0F;
+        
+        let offset = 12;
+        
+        // Skip Question section
+        for (let i = 0; i < qdcount; i++) {
+          while (offset < buffer.byteLength) {
+            const len = view.getUint8(offset++);
+            if (len === 0) break;
+            if ((len & 0xC0) === 0xC0) { offset++; break; }
+            offset += len;
+          }
+          offset += 4; // QTYPE + QCLASS
+        }
+        
+        const ips = [];
+        let minTtl = 999999;
+        
+        // Parse Answer section
+        for (let i = 0; i < ancount; i++) {
+          if (offset >= buffer.byteLength) break;
+          // Skip NAME
+          if ((view.getUint8(offset) & 0xC0) === 0xC0) {
+            offset += 2;
+          } else {
+            while (offset < buffer.byteLength) {
+              const len = view.getUint8(offset++);
+              if (len === 0) break;
+              offset += len;
+            }
+          }
+          if (offset + 10 > buffer.byteLength) break;
+          const atype = view.getUint16(offset);
+          const aclass = view.getUint16(offset + 2);
+          const attl = view.getUint32(offset + 4);
+          const rdlen = view.getUint16(offset + 8);
+          offset += 10;
+          
+          if (atype === 1 && rdlen === 4 && offset + 4 <= buffer.byteLength) { // Type A IPv4
+            const ip = `${view.getUint8(offset)}.${view.getUint8(offset+1)}.${view.getUint8(offset+2)}.${view.getUint8(offset+3)}`;
+            ips.push(ip);
+            minTtl = Math.min(minTtl, attl);
+          }
+          offset += rdlen;
+        }
+        
+        return {
+          txId,
+          qr,
+          aa,
+          rcode,
+          ancount,
+          ips,
+          ttl: minTtl === 999999 ? 0 : minTtl
+        };
+      }
+
+      // Perform DoH query to a specific resolver
+      async function queryDoH(resolver, domain, timeoutMs = 4500) {
+        const t0 = performance.now();
+        
+        // Attempt 1: DNS-JSON (for resolvers supporting JSON, fast and friendly)
+        if (resolver.jsonSupport) {
+          try {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), timeoutMs);
+            const sep = resolver.url.includes('?') ? '&' : '?';
+            const jsonUrl = `${resolver.url}${sep}name=${encodeURIComponent(domain)}&type=A&_=${Math.random().toString(36).slice(2, 7)}`;
+            
+            const resp = await fetch(jsonUrl, {
+              headers: { 'Accept': 'application/dns-json' },
+              signal: controller.signal
+            });
+            clearTimeout(timer);
+            const elapsed = Math.round(performance.now() - t0);
+            
+            if (resp.ok) {
+              const data = await resp.json();
+              const ips = [];
+              if (data.Answer) {
+                data.Answer.forEach(ans => {
+                  if (ans.type === 1 && ans.data) ips.push(ans.data);
+                });
+              }
+              return {
+                ok: true,
+                rcode: data.Status !== undefined ? data.Status : 0,
+                aa: data.AA || false,
+                ips: ips,
+                elapsed: elapsed,
+                protocol: 'DoH-JSON'
+              };
+            }
+          } catch (err) {
+            // Fallthrough to RFC 8484 binary wireformat
+          }
+        }
+
+        // Attempt 2: RFC 8484 Binary Wireformat over GET
+        try {
+          const wireQuery = buildDnsWireQuery(domain);
+          const b64 = base64UrlEncode(wireQuery);
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), timeoutMs);
+          const sep = resolver.url.includes('?') ? '&' : '?';
+          const targetUrl = `${resolver.url}${sep}dns=${b64}`;
+          
+          const resp = await fetch(targetUrl, {
+            headers: { 'Accept': 'application/dns-message' },
+            signal: controller.signal
+          });
+          clearTimeout(timer);
+          const elapsed = Math.round(performance.now() - t0);
+          
+          if (resp.ok) {
+            const buf = await resp.arrayBuffer();
+            const parsed = parseDnsWireResponse(buf);
+            if (parsed) {
+              return {
+                ok: true,
+                rcode: parsed.rcode,
+                aa: parsed.aa === 1,
+                ips: parsed.ips,
+                elapsed: elapsed,
+                protocol: 'RFC 8484'
+              };
+            }
+          }
+          return { ok: false, error: `HTTP ${resp.status}`, elapsed };
+        } catch (err) {
+          const elapsed = Math.round(performance.now() - t0);
+          const isTimeout = err.name === 'AbortError';
+          return {
+            ok: false,
+            error: isTimeout ? 'Таймаут' : 'Заблокирован ТСПУ (CORS/TLS RST)',
+            elapsed: elapsed
+          };
+        }
+      }
+
+      // ==========================================================================
+      // MAIN AUDIT SCANNER
+      // ==========================================================================
+
+      async function runFullAudit() {
+        if (state.scanning) return;
+        state.scanning = true;
+        
+        els.btnStartScan.disabled = true;
+        els.scanBtnIcon.textContent = '⏳';
+        els.scanBtnText.textContent = 'Сканирование...';
+        els.progressBarContainer.classList.add('active');
+        
+        log('INFO', '=== ЗАПУСК ПОЛНОГО АУДИТА DNS И БЛОКИРОВОК ТСПУ ===');
+        
+        // Reset statistics
+        state.resolversResults = {};
+        state.domainsResults = {};
+        state.stats = { dohTested: 0, dohSuccess: 0, dohBlocked: 0, spoofedDomains: 0, avgLatency: 0 };
+        
+        let totalLat = 0;
+        let latCount = 0;
+
+        // Step 1: Test DoH Resolvers
+        const totalSteps = RESOLVERS.length + DOMAINS.length;
+        let currentStep = 0;
+
+        for (let i = 0; i < RESOLVERS.length; i++) {
+          const res = RESOLVERS[i];
+          updateProgress(currentStep++, totalSteps, `Тестирование DoH: ${res.name}...`);
+          log('INFO', `Проверка резолвера ${res.name} (${res.url})...`);
+          
+          const pill = document.getElementById(`res-status-${res.id}`);
+          const rttEl = document.getElementById(`res-rtt-${res.id}`);
+          if (pill) { pill.className = 'status-pill status-pending'; pill.textContent = 'Запрос...'; }
+          
+          const result = await queryDoH(res, 'google.com', 4000);
+          state.resolversResults[res.id] = result;
+          state.stats.dohTested++;
+          
+          if (result.ok) {
+            state.stats.dohSuccess++;
+            totalLat += result.elapsed;
+            latCount++;
+            if (pill) { pill.className = 'status-pill status-ok'; pill.textContent = `Доступен (${result.protocol})`; }
+            if (rttEl) rttEl.textContent = `${result.elapsed} мс`;
+            log('SUCCESS', `✅ ${res.name} доступен: ${result.elapsed}мс, ответ [${result.ips.join(', ')}]`);
+          } else {
+            state.stats.dohBlocked++;
+            if (pill) { pill.className = 'status-pill status-blocked'; pill.textContent = result.error; }
+            if (rttEl) rttEl.textContent = '✕';
+            log('WARN', `❌ ${res.name} заблокирован или недоступен: ${result.error}`);
+          }
+          
+          updateDashboardStats(latCount > 0 ? Math.round(totalLat / latCount) : 0);
+        }
+
+        // Pick the best working DoH resolver as reference baseline
+        const workingResolvers = RESOLVERS.filter(r => state.resolversResults[r.id] && state.resolversResults[r.id].ok);
+        const primaryResolver = workingResolvers.find(r => r.id === 'cloudflare') || workingResolvers[0] || RESOLVERS[0];
+        
+        log('INFO', `Опорный DoH для аудита доменов: ${primaryResolver.name}`);
+
+        // Step 2: Audit Domains
+        for (let i = 0; i < DOMAINS.length; i++) {
+          const d = DOMAINS[i];
+          updateProgress(currentStep++, totalSteps, `Аудит домена: ${d.domain}...`);
+          
+          const domKey = d.domain.replace(/\./g, '_');
+          const statusEl = document.getElementById(`dom-status-${domKey}`);
+          const ipsEl = document.getElementById(`dom-ips-${domKey}`);
+          const rttEl = document.getElementById(`dom-rtt-${domKey}`);
+          const verdictEl = document.getElementById(`dom-verdict-${domKey}`);
+          
+          if (statusEl) { statusEl.className = 'status-pill status-pending'; statusEl.textContent = 'Резолвинг...'; }
+          
+          const res = await queryDoH(primaryResolver, d.domain, 3500);
+          state.domainsResults[d.domain] = res;
+          
+          if (res.ok) {
+            const hasBogon = res.ips.some(ip => BOGON_IPS.has(ip) || ip.startsWith('127.') || ip.startsWith('10.'));
+            if (statusEl) { statusEl.className = 'status-pill status-ok'; statusEl.textContent = 'NOERROR'; }
+            if (ipsEl) ipsEl.textContent = res.ips.length > 0 ? res.ips.slice(0, 3).join(', ') : 'Empty (CNAME/AAAA)';
+            if (rttEl) rttEl.textContent = `${res.elapsed} мс`;
+            
+            if (hasBogon) {
+              state.stats.spoofedDomains++;
+              if (verdictEl) { verdictEl.className = 'status-pill status-blocked'; verdictEl.textContent = '🚨 Подмена (Bogon IP)'; }
+              log('ERROR', `🚨 ОБНАРУЖЕНА ПОДМЕНА: Домен ${d.domain} вернул IP заглушку [${res.ips.join(', ')}]!`);
+            } else if (d.category !== 'control' && state.network.isRussia) {
+              if (verdictEl) { verdictEl.className = 'status-pill status-ok'; verdictEl.textContent = '✅ DoH Чист'; }
+              log('INFO', `Домен ${d.domain} успешно отрезолвлен через DoH: [${res.ips.slice(0, 2).join(', ')}]`);
+            } else {
+              if (verdictEl) { verdictEl.className = 'status-pill status-ok'; verdictEl.textContent = '✅ Чисто'; }
+            }
+          } else {
+            if (statusEl) { statusEl.className = 'status-pill status-blocked'; statusEl.textContent = 'Ошибка DoH'; }
+            if (ipsEl) ipsEl.textContent = 'Нет данных';
+            if (rttEl) rttEl.textContent = '✕';
+            if (verdictEl) { verdictEl.className = 'status-pill status-blocked'; verdictEl.textContent = 'Заблокирован'; }
+            log('WARN', `Не удалось отрезолвить ${d.domain}: ${res.error}`);
+          }
+          
+          updateDashboardStats(latCount > 0 ? Math.round(totalLat / latCount) : 0);
+        }
+
+        // Finalize
+        updateProgress(totalSteps, totalSteps, 'Аудит завершен!');
+        setTimeout(() => els.progressBarContainer.classList.remove('active'), 1200);
+        
+        calculateFinalVerdict();
+        
+        els.btnStartScan.disabled = false;
+        els.scanBtnIcon.textContent = '⚡';
+        els.scanBtnText.textContent = 'Запустить повторно';
+        state.scanning = false;
+        log('SUCCESS', '=== АУДИТ УСПЕШНО ЗАВЕРШЕН ===');
+      }
+
+      function updateProgress(step, total, text) {
+        const percent = Math.min(100, Math.round((step / total) * 100));
+        els.progressFill.style.width = `${percent}%`;
+        els.progressPercent.textContent = `${percent}%`;
+        els.progressStepText.textContent = text;
+      }
+
+      function updateDashboardStats(avgLat) {
+        const rate = state.stats.dohTested > 0 ? Math.round((state.stats.dohSuccess / state.stats.dohTested) * 100) : 0;
+        els.statDohRate.textContent = `${rate}%`;
+        els.statSpoofed.textContent = state.stats.spoofedDomains;
+        els.statBlockedDoh.textContent = state.stats.dohBlocked;
+        els.statAvgLatency.textContent = avgLat > 0 ? `${avgLat} мс` : '-- мс';
+        
+        if (state.stats.spoofedDomains > 0) {
+          els.statSpoofed.style.color = 'var(--clr-danger)';
+        }
+        if (state.stats.dohBlocked > 0) {
+          els.statBlockedDoh.style.color = 'var(--clr-warning)';
+        }
+      }
+
+      function calculateFinalVerdict() {
+        els.verdictCard.classList.remove('verdict-clean', 'verdict-warning', 'verdict-critical');
+        
+        const { dohTested, dohSuccess, dohBlocked, spoofedDomains } = state.stats;
+        
+        if (spoofedDomains > 0) {
+          els.verdictCard.classList.add('verdict-critical');
+          els.verdictBadge.className = 'verdict-badge badge-danger';
+          els.verdictBadge.textContent = '🚨 АКТИВНЫЙ ПЕРЕХВАТ ТСПУ';
+          els.verdictStatusText.textContent = 'Обнаружена подмена IP-адресов!';
+          els.verdictDesc.textContent = `Зафиксировано ${spoofedDomains} поддельных Bogon/заглушечных IP. Провайдер или ТСПУ вмешивается в DNS-ответы. Рекомендуется активировать DoH с ECH или VPN.`;
+          return;
+        }
+
+        if (dohBlocked >= 3 || (dohSuccess === 0 && dohTested > 0)) {
+          els.verdictCard.classList.add('verdict-critical');
+          els.verdictBadge.className = 'verdict-badge badge-danger';
+          els.verdictBadge.textContent = '🚫 БЛОКИРОВКА DOH РЕЗОЛВЕРОВ';
+          els.verdictStatusText.textContent = 'ТСПУ блокирует зашифрованный DoH';
+          els.verdictDesc.textContent = `${dohBlocked} из ${dohTested} DoH резолверов заблокированы на уровне TLS/SNI. Рекомендуется использовать DoH по IP или антицензурные прокси (Zapret / Amnezia).`;
+          return;
+        }
+
+        if (dohBlocked > 0) {
+          els.verdictCard.classList.add('verdict-warning');
+          els.verdictBadge.className = 'verdict-badge badge-warning';
+          els.verdictBadge.textContent = '⚠️ ЧАСТИЧНАЯ ФИЛЬТРАЦИЯ';
+          els.verdictStatusText.textContent = 'Часть DoH серверов недоступна';
+          els.verdictDesc.textContent = `Обнаружена недоступность ${dohBlocked} резолверов. Однако ключевые DoH серверы работают и возвращают чистые IP-адреса.`;
+          return;
+        }
+
+        els.verdictCard.classList.add('verdict-clean');
+        els.verdictBadge.className = 'verdict-badge badge-clean';
+        els.verdictBadge.textContent = '🛡️ DNS БЕЗОПАСЕН';
+        els.verdictStatusText.textContent = 'Вмешательства и подмен не обнаружено';
+        els.verdictDesc.textContent = 'Все проверенные DoH-резолверы доступны, задержка в норме, инъекций заглушек ТСПУ не зафиксировано.';
+      }
+
+      // ==========================================================================
+      // SHARE & EXPORT
+      // ==========================================================================
+
+      function generateShareReport() {
+        const time = new Date().toLocaleString('ru-RU');
+        const net = state.network;
+        const s = state.stats;
+        
+        let statusEmoji = '🟢';
+        if (s.spoofedDomains > 0) statusEmoji = '🔴';
+        else if (s.dohBlocked > 0) statusEmoji = '🟡';
+
+        return `🛡️ Отчет проверки DNS & ТСПУ (РКН)
+📅 Дата: ${time}
+📍 Сеть: ${net.ip || 'Скрыт'} | ${net.isp || 'Неизвестен'} (${net.country || 'N/A'})
+
+${statusEmoji} Вердикт: ${els.verdictStatusText.textContent}
+• Доступность DoH: ${els.statDohRate.textContent}
+• Заблокировано DoH серверов: ${s.dohBlocked}
+• Подмен IP (Bogon заглушки): ${s.spoofedDomains}
+• Средняя задержка DoH: ${els.statAvgLatency.textContent}
+
+💻 Проверено через веб-детектор: ${window.location.href}`;
+      }
+
+      function exportJsonReport() {
+        const report = {
+          timestamp: new Date().toISOString(),
+          network: state.network,
+          verdict: {
+            title: els.verdictStatusText.textContent,
+            badge: els.verdictBadge.textContent,
+            desc: els.verdictDesc.textContent
+          },
+          stats: state.stats,
+          resolvers: state.resolversResults,
+          domains: state.domainsResults
+        };
+
+        const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `dns_rkn_report_${Date.now()}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        showToast('JSON отчет сохранен!', '💾');
+      }
+
+      // --- EVENT LISTENERS ---
+      function setupEventListeners() {
+        els.btnStartScan.addEventListener('click', runFullAudit);
+        els.btnRefreshNet.addEventListener('click', detectNetworkInfo);
+        
+        // Share Modal
+        els.btnShareModal.addEventListener('click', () => {
+          els.shareReportText.value = generateShareReport();
+          els.shareModal.classList.add('active');
+        });
+
+        els.btnCloseShareModal.addEventListener('click', () => {
+          els.shareModal.classList.remove('active');
+        });
+
+        els.btnCopyShareText.addEventListener('click', () => {
+          navigator.clipboard.writeText(els.shareReportText.value);
+          showToast('Отчет скопирован в буфер обмена!', '📋');
+        });
+
+        // Export JSON
+        els.btnExportJson.addEventListener('click', exportJsonReport);
+
+        // Copy CLI Command
+        els.btnCopyCli.addEventListener('click', () => {
+          const cmd = document.getElementById('cliCommandText').textContent;
+          navigator.clipboard.writeText(cmd);
+          showToast('Команда скопирована в буфер обмена!', '💻');
+        });
+
+        // Terminal Log Buttons
+        els.btnClearLog.addEventListener('click', () => {
+          els.terminalBody.innerHTML = '';
+          log('INFO', 'Консоль очищена.');
+        });
+
+        els.btnCopyLog.addEventListener('click', () => {
+          const text = Array.from(els.terminalBody.querySelectorAll('.log-line'))
+            .map(l => l.textContent)
+            .join('\n');
+          navigator.clipboard.writeText(text);
+          showToast('Логи скопированы!', '📋');
+        });
+
+        // Search & Category Filters for Domains
+        let activeCategory = 'all';
+        document.querySelectorAll('#domainCategoryChips .chip').forEach(chip => {
+          chip.addEventListener('click', () => {
+            document.querySelectorAll('#domainCategoryChips .chip').forEach(c => c.classList.remove('active'));
+            chip.classList.add('active');
+            activeCategory = chip.getAttribute('data-cat');
+            renderDomainsTable(activeCategory, els.domainSearchInput.value);
+          });
+        });
+
+        els.domainSearchInput.addEventListener('input', (e) => {
+          renderDomainsTable(activeCategory, e.target.value);
+        });
+
+        // Resolvers Filter Chips
+        document.querySelectorAll('[data-filter-doh]').forEach(chip => {
+          chip.addEventListener('click', () => {
+            document.querySelectorAll('[data-filter-doh]').forEach(c => c.classList.remove('active'));
+            chip.classList.add('active');
+            const filter = chip.getAttribute('data-filter-doh');
+            
+            RESOLVERS.forEach(res => {
+              const card = document.getElementById(`resolver-card-${res.id}`);
+              if (!card) return;
+              const resData = state.resolversResults[res.id];
+              if (filter === 'all') card.style.display = 'flex';
+              else if (filter === 'ok') card.style.display = (resData && resData.ok) ? 'flex' : 'none';
+              else if (filter === 'blocked') card.style.display = (resData && !resData.ok) ? 'flex' : 'none';
+            });
+          });
+        });
+      }
+
+      // Run on DOM ready
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+      } else {
+        init();
+      }
+
+    })();
+  </script>
+</body>
+</html>
